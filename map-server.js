@@ -1,55 +1,174 @@
-import express from 'express';
-import cors from 'cors';
-import MBTiles from '@mapbox/mbtiles';
-import path from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
+require('dotenv').config(); // Carga las variables de entorno desde el archivo .env
+const express = require('express');
+const cors = require('cors');
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { createClient } = require('@supabase/supabase-js');
 const app = express();
-const PORT = 8080;
+const PORT = 8089;
 
-// Habilitar CORS para que la app React pueda pedir las teselas
-app.use(cors());
+// Middleware de seguridad y utilidad
+app.use(cors({ origin: '*' }));
+app.use(express.json());
 
-// Ruta al archivo mbtiles
-const mbtilesPath = path.join(__dirname, 'cartas_privadas.mbtiles');
+// 🛡️ 1. Configuración de Supabase (Llave Maestra)
+const supabase = createClient(
+  process.env.SUPABASE_URL,
+  process.env.SUPABASE_SERVICE_ROLE_KEY
+);
 
-new MBTiles(mbtilesPath, (err, mbtiles) => {
-  if (err) {
-    console.error('⚠️ Error al cargar el archivo mbtiles. Asegúrate de que "cartas_privadas.mbtiles" existe en la raíz del proyecto.');
-    console.error(err.message);
-  } else {
-    console.log('✅ Archivo MBTiles cargado correctamente.');
-  }
 
-  // Endpoint para servir las teselas
-  app.get('/tiles/:z/:x/:y.png', (req, res) => {
-    const { z, x, y } = req.params;
+// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+// Por esto (usa tu clave nueva, sin espacios):
+const genAI = new GoogleGenerativeAI("AIzaSyAnUglszmg8sXIuQmfiewZiXBvbHHkLUXo");
+// Y añade este log para confirmar
+console.log("🔑 Clave configurada manualmente:", "AIza...");
+
+// --- ENDPOINTS ---
+
+// 🤖 Endpoint de Chat Seguro con Ubicación Dinámica en Tiempo Real
+app.post('/api/chat', async (req, res) => {
+  try {
+    // 📥 Recibimos la posición en tiempo real desde el frontend
+    const { prompt, systemInstruction, isJson, posicionActual } = req.body;
+    if (!prompt) return res.status(400).json({ error: "Falta el mensaje" });
+
+    // 📡 CONTEXTO DE UBICACIÓN DINÁMICO
+    let reporteUbicacion = "Desconocida. El GPS del buque no ha enviado coordenadas válidas aún.";
     
-    if (!mbtiles) {
-      return res.status(500).send('Base de datos MBTiles no cargada');
+    if (posicionActual && posicionActual.lat && posicionActual.lng) {
+      reporteUbicacion = `Latitud: ${posicionActual.lat}, Longitud: ${posicionActual.lng}`;
+      if (posicionActual.sector) {
+        reporteUbicacion += ` (Sector / Zona: ${posicionActual.sector})`;
+      }
     }
 
-    mbtiles.getTile(z, x, y, (err, tile, headers) => {
-      if (err) {
-        // Enviar una imagen transparente o 404 si la tesela no existe
-        res.status(404).send('Tile not found');
-      } else {
-        res.set(headers);
-        res.send(tile);
-      }
-    });
+    const telemetriaBuque = `
+      --- INFORME TÁCTICO DE BITÁCORA ---
+      [Ubicación del Buque]: ${reporteUbicacion}
+      [Estado de Sistemas]: Cartografía Leaflet ONLINE, Servidores Supabase PROTEGIDOS.
+      [Identificación del Capitán]: El de la gorra.
+      ------------------------------------
+    `;
+
+    const directivaSistemaFinal = `
+      Eres IA_OFFICER, el sistema de inteligencia artificial táctico a bordo de SmartShip PRO.
+      Asiste al capitán con datos concisos, profesionales y tono náutico militar.
+      
+      ${telemetriaBuque}
+      
+      INSTRUCCIÓN DE OPERACIÓN:
+      Si el capitán te pide el estado del tiempo o del viento, utiliza los datos de ubicación (coordenadas o sector) provistos arriba. Simula un reporte meteorológico marítimo realista acorde a esa posición geográfica (viento en nudos, dirección, estado de la mar y ráfagas). Si la ubicación dice "Desconocida", infórmale cortésmente que necesitas que fije una posición en el mapa cartográfico primero.
+      
+      ${systemInstruction || "Actúa con tu protocolo estándar de asistencia al puente."}
+    `;
+
+    const configuracionModelo = { 
+      model: "gemini-3-flash-preview",
+      systemInstruction: directivaSistemaFinal
+    };
+
+    if (isJson) {
+      configuracionModelo.generationConfig = { responseMimeType: "application/json" };
+    }
+
+    const model = genAI.getGenerativeModel(configuracionModelo);
+    const result = await model.generateContent(prompt);
+    const response = await result.response;
+    
+    res.json({ text: response.text() });
+  } catch (error) {
+    console.error("❌ Error en comunicación Nexus:", error.message);
+    res.status(500).json({ error: "Fallo en la comunicación con la IA" });
+  }
+});
+
+// 🗄️ Ejemplo de Endpoint Seguro para Base de Datos
+// El frontend llamará aquí para pedir datos, y el servidor los buscará en Supabase
+app.get('/api/flota', async (req, res) => {
+  try {
+    // Al usar la service_role key, esta consulta ignora el RLS y siempre funciona
+    const { data, error } = await supabase.from('flota').select('*');
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error de Supabase:", error.message);
+    res.status(500).json({ error: "Error al acceder a la base de datos" });
+  }
+});
+
+// Endpoint de Salud
+app.get('/health', (req, res) => res.status(200).send('OK'));
+
+app.listen(PORT, () => {
+  console.log(`🚀 SmartShip PRO Backend ONLINE en puerto ${PORT}`);
+  console.log(`🛡️  Modo Seguro: IA y Supabase encapsulados.`);
+
+  // 👑 ENDPOINT EXCLUSIVO DEL MENÚ ALMIRANTAZGO
+// Solo accesible a través de tu servidor seguro
+app.get('/api/almirantazgo/usuarios', async (req, res) => {
+  try {
+    // Tu servidor ignora las restricciones del frontend y lee la vista directamente
+    const { data, error } = await supabase
+      .from('vista_administracion_usuarios')
+      .select('*');
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error en Menú Almirantazgo:", error.message);
+    res.status(500).json({ error: "Acceso denegado a la suite de administración." });
+  }
   });
 
-  app.get('/health', (req, res) => {
-    res.status(200).send('OK');
-  });
+  // Ejemplo para descargar un archivo de forma segura desde el backend
+app.get('/api/archivos/:nombreArchivo', async (req, res) => {
+  const { nombreArchivo } = req.params;
+  
+  const { data, error } = await supabase.storage
+    .from('tu-bucket-privado')
+    .download(nombreArchivo);
 
-  app.listen(PORT, () => {
-    console.log(`🚀 Servidor de Cartas CM93 corriendo en http://localhost:${PORT}`);
-    console.log(`📂 Sirviendo teselas desde: ${mbtilesPath}`);
-    console.log(`🔗 Endpoint de teselas: http://localhost:${PORT}/tiles/{z}/{x}/{y}.png`);
-  });
+  if (error) return res.status(404).json({ error: "Archivo no encontrado" });
+  
+  // Enviar el archivo de vuelta al frontend
+  const buffer = Buffer.from(await data.arrayBuffer());
+  res.send(buffer);
+});
+// 🛥️ ENDPOINT: Obtener Flota
+app.get('/api/flota', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('flota').select('*');
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error al obtener flota:", error.message);
+    res.status(500).json({ error: "Error en el servidor central" });
+  }
+});
+
+// 📦 ENDPOINT: Obtener Inventario
+app.get('/api/inventario', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('inventario').select('*'); // Ajusta el nombre de tu tabla si es necesario
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error al obtener inventario:", error.message);
+    res.status(500).json({ error: "Error en el servidor central" });
+  }
+});
+
+// 👑 ENDPOINT: Menú Almirantazgo (Usuarios)
+app.get('/api/almirantazgo/usuarios', async (req, res) => {
+  try {
+    const { data, error } = await supabase.from('vista_administracion_usuarios').select('*');
+    if (error) throw error;
+    res.json(data);
+  } catch (error) {
+    console.error("❌ Error en Menú Almirantazgo:", error.message);
+    res.status(500).json({ error: "Error al obtener la lista de administración" });
+  }
+});
 });

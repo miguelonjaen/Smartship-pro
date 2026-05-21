@@ -12,7 +12,7 @@ interface AlarmToastsProps {
 
 export const AlarmToasts: React.FC<AlarmToastsProps> = ({ alarms, onRemove, isMuted, onMuteToggle }) => {
   return (
-    <div className="fixed top-6 right-6 z-[10000] flex flex-col gap-3 w-80 pointer-events-none">
+    <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[10000] flex flex-col gap-3 w-80 pointer-events-none">
       <div className="flex justify-end mb-2 pointer-events-auto">
         <button 
           onClick={onMuteToggle}

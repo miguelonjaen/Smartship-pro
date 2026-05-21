@@ -104,6 +104,12 @@ import { WatchdogPanel } from './components/WatchdogPanel';
 import { AlarmToasts } from './components/AlarmToasts';
 import ErrorBoundary from './components/ErrorBoundary';
 
+declare global {
+  interface Window {
+    smartshipAPI: any;
+  }
+}
+
 // --- Constants ---
 const APP_ID = "react-example";
 const GEMINI_MODEL = "gemini-1.5-flash";
@@ -144,7 +150,7 @@ const ZoomIndicator = () => {
   });
 
   return (
-    <div className="absolute bottom-6 right-6 z-[6000] bg-slate-950/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-xl flex items-center gap-2">
+    <div className="absolute bottom-6 right-6 z-[6000] bg-slate-950/80 backdrop-blur-md border border-white/10 px-3 py-1.5 rounded-xl flex items-center gap-2 shadow-lg">
       <Gauge className="w-3 h-3 text-cyan-400" />
       <span className="text-[10px] font-black text-white uppercase tracking-widest">Zoom: {zoom}</span>
     </div>
@@ -184,6 +190,78 @@ const MapBoundsHandler = ({ path, showControl, showSystems }: { path: [number, n
 // --- Main App Component ---
 
 function App() {
+  // 🏷️ [ETIQUETA: CARTAS LOCALES - ESTADOS Y EFECTOS]
+  const [cartasPath, setCartasPath] = useState<string>('Buscando entorno SmartShip...');
+  const [listaCartas, setListaCartas] = useState<string[]>(['Carta_Prueba_Andalucia.mbtiles']);
+// 🗺️ CONTROL DE CAPAS DESPLEGABLES
+  const [isLayersMenuOpen, setIsLayersMenuOpen] = useState<boolean>(false);
+  const [cartasActivas, setCartasActivas] = useState<Record<string, boolean>>({});
+
+  const toggleCarta = (nombreArchivo: string) => {
+    setCartasActivas(prev => ({
+      ...prev,
+      [nombreArchivo]: !prev[nombreArchivo]
+    }));
+  };
+  useEffect(() => {
+    if (window.smartshipAPI && window.smartshipAPI.getDefaultChartsPath) {
+      window.smartshipAPI.getDefaultChartsPath()
+        .then((path: string) => {
+          setCartasPath(path);
+          
+          window.smartshipAPI.listChartsFiles(path)
+            .then((archivos: string[]) => {
+              const cartasEncontradas = archivos || [];
+              setListaCartas(cartasEncontradas);
+
+              const iniciales: Record<string, boolean> = {};
+              cartasEncontradas.forEach((a: string) => {
+                iniciales[a] = false;
+              });
+              setCartasActivas(iniciales);
+            })
+            .catch((err: any) => {
+              console.error("Error al leer archivos de arranque:", err);
+              setListaCartas([]);
+            });
+        })
+        .catch((err: any) => {
+          console.error("Error al obtener la ruta de cartas por defecto:", err);
+        });
+    }
+  }, []); // 👈 Aquí termina de forma limpia el useEffect en la línea 230
+  const handleCambiarCarpeta = async () => {
+    if (window.smartshipAPI && window.smartshipAPI.selectChartsDirectory) {
+      try {
+        const nuevaRuta = await window.smartshipAPI.selectChartsDirectory();
+        
+        // 📢 CHIVATO 1: ¿Qué nos devuelve Windows exactamente?
+        console.log("Ruta seleccionada en la ventana de Windows:", nuevaRuta);
+
+        if (nuevaRuta) {
+          setCartasPath(nuevaRuta);
+          
+          const archivos = await window.smartshipAPI.listChartsFiles(nuevaRuta);
+          
+          // 📢 CHIVATO 2: ¿Qué archivos dice Electron que hay ahí dentro en ese instante?
+          console.log("Archivos devueltos por el backend para esa ruta:", archivos);
+
+          const cartasEncontradas = archivos || [];
+          setListaCartas(cartasEncontradas);
+
+          const initialStates: Record<string, boolean> = {};
+          cartasEncontradas.forEach((archivo: string) => {
+            initialStates[archivo] = false;
+          });
+          setCartasActivas(initialStates);
+        }
+      } catch (error) {
+        console.error("Error al cambiar de carpeta manualmente:", error);
+      }
+    }
+  };
+  
+    // --------------------------------------------------
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [isInitialLoading, setIsInitialLoading] = useState(true);
   const [lang, setLang] = useState<Language>('es');
@@ -308,8 +386,10 @@ function App() {
 
     const statusAtScale = isTravesiaActive ? 'EN OPERACIÓN (TRAVESÍA ACTIVA)' : 'EN REPOSO (ATRACADO)';
     const captainName = userProfile?.name || 'Comandante';
-    const activeShip = fleet.find(s => s.id === (selectedShipId || selectedShip?.id)) || selectedShip;
-    const shipName = activeShip?.nombre || 'Nucleus Zero';
+    // 1. Saneamos la búsqueda asegurando que comparamos Strings puros (evita fallos de tipo UUID)
+const activeShip = fleet.find(s => String(s.id) === String(selectedShipId || selectedShip?.id)) || selectedShip || fleet[0];
+    // 2. Control de nombre por si viene vacío
+const shipName = activeShip?.nombre || 'Nucleus Zero';
 
     const systemPrompt = `
       ASISTENTE DE COMANDO PRO-NAUTIC (PROTOCOLO NUCLEUS):
@@ -1348,7 +1428,7 @@ function App() {
   const [isAutoCenter, setIsAutoCenter] = useState(true);
   const [showControl, setShowControl] = useState(false);
   const [showSystems, setShowSystems] = useState(false);
-  const [isIntMin, setIntMin] = useState(false);
+  const [isIntMin, setIntMin] = useState(true);
 
   // Auto-maximize intel window on new AI message
   useEffect(() => {
@@ -3226,6 +3306,8 @@ function App() {
               setDataSource={setDataSource}
               thresholds={thresholds}
               setThresholds={setThresholds}
+              cartasPath={cartasPath}
+              onCambiarCarpeta={handleCambiarCarpeta}
             />
           </div>
         );
@@ -3502,14 +3584,47 @@ function App() {
                     <MapUpdater center={mapCenter} zoom={chartMode === 'mbtiles' ? MBTILES_ZONES[mbtileIndex].zoom : undefined} />
                     <ZoomIndicator />
                   <LayersControl position="topright">
-                    <LayersControl.BaseLayer checked={chartMode === 'standard'} name="OpenStreetMap">
-                      <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                    </LayersControl.BaseLayer>
-                    <LayersControl.BaseLayer name="Satélite">
-                      <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
-                    </LayersControl.BaseLayer>
-                  </LayersControl>
+  <LayersControl.BaseLayer checked={chartMode === 'standard'} name="OpenStreetMap">
+    <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+  </LayersControl.BaseLayer>
+  
+  <LayersControl.BaseLayer name="Satélite">
+    <TileLayer url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}" />
+  </LayersControl.BaseLayer>
+</LayersControl>
+{/* 🗺️ RENDERIZADO DE CARTAS PRO ACTIVADAS DESDE EL PANEL FLOTANTE */}
+{listaCartas.map((archivo: string) => {
+  // Si el checkbox no está marcado, no pintamos nada en el agua
+  if (!cartasActivas[archivo]) return null;
 
+  // 🗺️ Dentro de tu listaCartas.map, busca el TileLayer para MBTiles y déjalo así:
+if (archivo.toLowerCase().endsWith('.mbtiles')) {
+  return (
+    <TileLayer
+            // Cambiamos la URL para que pida la carta real de forma dinámica al puerto 8089
+      url={`http://localhost:8089/tiles/cm93/{z}/{x}/{y}.png`}
+      attribution="SmartShip PRO CM93 Engine"
+      zIndex={100}
+      maxZoom={18}
+      minZoom={0}
+      opacity={0.8}
+             
+    />
+  );
+}
+  return null;
+})}
+
+{/* 🛰️ 2. CARTOGRAFÍA TÁCTICA FIJA (Tu bloque original con restricción Almirantazgo) */}
+{chartMode === 'mbtiles' && userProfile?.plan_tactico !== 'basico' && (
+  <MBTileLayer
+    url={MBTILES_ZONES[mbtileIndex].file}
+    name={MBTILES_ZONES[mbtileIndex].name}
+    plan_tactico={userProfile?.plan_tactico}
+    navigationDestination={navigationDestination}
+    shipPosition={shipPosition}
+  />
+)}
                   {chartMode === 'mbtiles' && userProfile?.plan_tactico !== 'basico' && (
                     <MBTileLayer 
                       url={MBTILES_ZONES[mbtileIndex].file} 
@@ -3626,14 +3741,23 @@ function App() {
                       <Marker 
                         key={ship.id}
                         position={pos} 
-                        icon={L.divIcon({
-                          className: 'ship-icon',
-                          html: `<div class="w-12 h-12 ${selectedShipId === ship.id ? 'bg-cyan-600 ring-4 ring-cyan-400/30' : 'bg-slate-900'} rounded-2xl flex items-center justify-center border-2 border-cyan-500/50 shadow-[0_0_20px_rgba(6,182,212,0.3)] transform transition-all duration-500 hover:scale-110">
-                            <span class="text-xl">${getShipEmoji(ship.tipo_barco)}</span>
-                          </div>`,
-                          iconSize: [48, 48],
-                          iconAnchor: [24, 24]
-                        })}
+                       // ✅ REEMPLAZAR EL BLOQUE INTERIOR POR ESTO:
+icon={L.icon({
+  // Ruta absoluta a la carpeta public
+  iconUrl: '/barco-player.png', 
+  
+  // Tamaño [Ancho, Alto]. Ajusta según las proporciones de tu render (suele ser vertical)
+  iconSize: [25, 50], 
+  
+  // Punto de pivote centrado (mitad de las dimensiones)
+  iconAnchor: [12.5, 25], 
+  
+  // Dónde abre el popup respecto al anchor
+  popupAnchor: [0, -25],
+  
+  // Mantenemos una clase por si quieres aplicar estilos CSS globales
+  className: 'ship-tactical-render'
+})}
                       >
                         <Popup className="custom-popup">
                           <div className="bg-slate-950 border border-slate-800 rounded-2xl overflow-hidden p-0 w-56 shadow-2xl">
@@ -3702,31 +3826,39 @@ function App() {
 
                   {shipPosition && (
                     <Marker 
-                      position={[shipPosition.lat, shipPosition.lng]}
-                      icon={L.divIcon({
-                        className: 'admiral-ship-icon',
-                        html: renderToStaticMarkup(
-                          <div className="w-12 h-12 bg-emerald-600 ring-4 ring-emerald-400/50 rounded-2xl flex items-center justify-center border-2 border-white shadow-[0_0_30px_rgba(16,185,129,0.5)] transform scale-125">
-                            <Ship className="w-8 h-8 text-white" />
-                          </div>
-                        ),
-                        iconSize: [48, 48],
-                        iconAnchor: [24, 24]
-                      })}
-                    >
-                      <Popup className="custom-popup">
-                        <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 w-48 shadow-2xl">
-                          <p className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-2">
-                            <Ship className="w-3 h-3" /> Buque Insignia
-                          </p>
-                          <p className="text-sm font-bold text-white uppercase tracking-tighter">Nucleus One</p>
-                          <div className="mt-2 pt-2 border-t border-slate-900">
-                             <p className="text-[10px] text-slate-500 font-mono">LAT: {shipPosition.lat.toFixed(4)}</p>
-                             <p className="text-[10px] text-slate-500 font-mono">LNG: {shipPosition.lng.toFixed(4)}</p>
-                          </div>
-                        </div>
-                      </Popup>
-                    </Marker>
+  key="buque-insignia-unico"
+  position={[shipPosition.lat, shipPosition.lng]}
+  icon={L.icon({
+    iconUrl: '/barco-player.png',
+    iconSize: [36, 36],     // 👈 Cambiar a una escala cuadrada o proporcional a tu PNG original
+  iconAnchor: [18, 18],   // La mitad exacta de iconSize para que rote sobre su eje real
+  popupAnchor: [0, -18]
+  })}
+>
+  <Popup className="custom-popup">
+  <div className="bg-slate-950 border border-slate-800 rounded-2xl p-4 w-48 shadow-2xl">
+    <p className="text-xs font-black text-emerald-400 uppercase tracking-widest mb-2 flex items-center gap-2">
+      <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" /> Buque Insignia
+    </p>
+    
+    <p className="text-sm font-bold text-white uppercase tracking-tighter">
+      {/* 🔄 Buscamos el barco de la flota que coincida con el ID seleccionado, o usamos selectedShip */}
+      {typeof fleet !== 'undefined' && fleet.length > 0
+        ? (fleet.find(s => String(s.id) === String(selectedShipId))?.nombre || selectedShip?.nombre || 'Buque Activo')
+        : (selectedShip?.nombre || 'Buque Activo')}
+    </p>
+    
+    <div className="mt-2 pt-2 border-t border-slate-900">
+      <p className="text-[10px] text-slate-500 font-mono">
+        LAT: {Number(shipPosition?.lat || 36.7215).toFixed(4)}
+      </p>
+      <p className="text-[10px] text-slate-500 font-mono">
+        LNG: {Number(shipPosition?.lng || -3.5235).toFixed(4)}
+      </p>
+    </div>
+  </div>
+</Popup>
+</Marker>
                   )}
 
                   <MapEvents 
@@ -3734,6 +3866,7 @@ function App() {
                     onDragStart={() => setIsAutoCenter(false)}
                   />
                 </MapContainer>
+                
 
                 {/* Columna de Acción: Integrada en el mapa */}
                 <div className="absolute right-4 top-1/2 -translate-y-1/2 z-[500] flex flex-col gap-3">
@@ -3742,7 +3875,7 @@ function App() {
                         setHudPageIndex(3); 
                         setShowControl(!showControl);
                         // Force restore terminal if it was minimized when opening HUB
-                        if (isIntMin) setIntMin(false);
+                        if (isIntMin) setIntMin(true);
                       }}
                       className={cn(
                         "w-14 h-24 rounded-2xl flex flex-col items-center justify-center gap-2 transition-all border border-white/10 shadow-2xl backdrop-blur-md group overflow-hidden relative",
@@ -3821,6 +3954,9 @@ function App() {
                     twd={weather?.windDir || 0}
                     tws={weather?.wind || 0}
                     twa={((weather?.windDir || 0) - (fleet.find(s => s.id === selectedShipId)?.cog || 113) + 360) % 360}
+                    awa={((weather?.windDir || 0) - (fleet.find(s => s.id === selectedShipId)?.cog || 113) - 20 + 360) % 360}
+                    aws={(weather?.wind || 0) * 1.2}
+                    vmg={(simulatedSog || 0) * Math.cos((((weather?.windDir || 0) - (fleet.find(s => s.id === selectedShipId)?.cog || 113) + 360) % 360) * Math.PI / 180)}
                     onTabChange={setActiveTab}
                     onMotor={handleMotor}
                     onVela={handleVela}
@@ -3835,7 +3971,6 @@ function App() {
                     onRaceTimerFinished={handleRaceTimerFinished}
                     depth={depth}
                     depthHistory={depthHistory}
-                    awa={((weather?.windDir || 0) - (fleet.find(s => s.id === selectedShipId)?.cog || 113) - 20 + 360) % 360}
                     trip1={trip1}
                     trip2={trip2}
                     engineData={engineData}
@@ -4203,6 +4338,8 @@ function App() {
     </div>
   );
 }
+
+
 
 export default function AppWithErrorBoundary() {
   return (

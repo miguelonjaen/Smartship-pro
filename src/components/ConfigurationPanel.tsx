@@ -1,5 +1,5 @@
 import React from 'react';
-import { Settings, Wifi, Compass, Gauge, ShieldAlert, Cpu, ShieldCheck, Activity } from 'lucide-react';
+import { Settings, Wifi, Compass, Gauge, ShieldAlert, Cpu, ShieldCheck, Activity, FolderOpen } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { SecurityThresholds } from '../types';
 
@@ -8,13 +8,17 @@ interface ConfigPanelProps {
   setDataSource: React.Dispatch<React.SetStateAction<Record<string, 'real' | 'simulated'>>>;
   thresholds: SecurityThresholds;
   setThresholds: React.Dispatch<React.SetStateAction<SecurityThresholds>>;
+  cartasPath: string; // 📁 Añadido para el control de cartas
+  onCambiarCarpeta: () => void; // 📁 Añadido para el control de cartas
 }
 
 export const ConfigurationPanel: React.FC<ConfigPanelProps> = ({ 
   dataSource, 
   setDataSource,
   thresholds,
-  setThresholds
+  setThresholds,
+  cartasPath, // 📁 Recibido desde App.tsx
+  onCambiarCarpeta // 📁 Recibido desde App.tsx
 }) => {
   const toggleSource = (key: string) => {
     setDataSource(prev => ({
@@ -216,6 +220,7 @@ export const ConfigurationPanel: React.FC<ConfigPanelProps> = ({
             </div>
           </div>
 
+          {/* CALIBRACIÓN */}
           <div className="col-span-full bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
             <div className="flex items-center gap-2 text-slate-300 mb-4">
               <Settings size={20} />
@@ -233,6 +238,7 @@ export const ConfigurationPanel: React.FC<ConfigPanelProps> = ({
             </div>
           </div>
 
+          {/* GATEWAY NMEA */}
           <div className="col-span-full bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
             <div className="flex items-center gap-2 text-slate-300 mb-4">
               <Wifi size={20} />
@@ -243,6 +249,30 @@ export const ConfigurationPanel: React.FC<ConfigPanelProps> = ({
               <input type="text" placeholder="Puerto: 10110" className="bg-slate-900 border border-slate-700 rounded-xl p-3 text-white" />
             </div>
           </div>
+
+          {/* 📁 SECCIÓN DE CARTAS NÁUTICAS (NUEVA) */}
+          <div className="col-span-full bg-slate-950/50 p-6 rounded-3xl border border-slate-800">
+            <div className="flex items-center gap-2 text-slate-300 mb-4">
+              <FolderOpen size={20} className="text-cyan-400" />
+              <span className="font-bold">Repositorio de Cartas Locales</span>
+            </div>
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between bg-black/40 p-4 rounded-2xl border border-white/5">
+              <div className="flex-1 min-w-0">
+                <span className="text-[10px] font-mono text-slate-500 uppercase tracking-widest block mb-1">Ruta del Directorio</span>
+                <p className="text-sm font-mono text-cyan-400 truncate pr-2">
+                  {cartasPath || "Cargando repositorio..."}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={onCambiarCarpeta}
+                className="w-full sm:w-auto px-5 py-2.5 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-white/10 active:scale-95"
+              >
+                Cambiar Ruta
+              </button>
+            </div>
+          </div>
+
         </div>
       </div>
     </div>

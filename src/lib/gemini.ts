@@ -1,12 +1,7 @@
 /**
- * Advanced Gemini API caller using @google/genai SDK.
- * Versión 5.0 - Protocolo Nexus (Actionable Intelligence)
+ * Advanced Gemini API caller - Protocolo Nexus
+ * Ahora redirige las peticiones a tu servidor local seguro (puerto 8089)
  */
-
-import { GoogleGenAI, FunctionDeclaration } from "@google/genai";
-
-const API_KEY = (process.env.GEMINI_API_KEY || "AIzaSyCM23JCjhLQjLOYKDjZUGIIv4OqwmHkNQc").trim();
-const ai = new GoogleGenAI({ apiKey: API_KEY });
 
 export interface GeminiResponse {
   text: string;
@@ -17,53 +12,35 @@ export async function callGemini(
   prompt: string, 
   systemInstruction?: string, 
   isJson?: boolean,
-  tools?: FunctionDeclaration[]
+  tools?: any[], // Ajustado para mantener compatibilidad
+  posicionActual?: { lat: number; lng: number; sector?: string } // 👈 ¡NUEVO PARAMETRO TÁCTICO!
 ): Promise<GeminiResponse | any> {
-  const MODEL_ID = "gemini-3-flash-preview"; 
   
   try {
-    console.log(`📡 ESTABLECIENDO ENLACE NEXUS: ${MODEL_ID}...`);
+    console.log(`📡 ESTABLECIENDO ENLACE NEXUS SEGURIZADO...`);
 
-    const result = await ai.models.generateContent({
-      model: MODEL_ID,
-      contents: [{ role: "user", parts: [{ text: prompt }] }],
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 0.2,
-        maxOutputTokens: 2048,
-        responseMimeType: isJson ? "application/json" : "text/plain",
-        tools: tools ? [{ functionDeclarations: tools }] : undefined,
-      },
+    // Hacemos el POST a tu propio servidor (Backend Seguro)
+    const response = await fetch('http://localhost:8089/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        prompt, 
+        systemInstruction, 
+        isJson, 
+        tools,
+        posicionActual // 👈 Le enviamos la posición en tiempo real al backend
+      })
     });
 
-    if (isJson) {
-      try {
-        const text = result.text || "{}";
-        const startIdx = text.indexOf('{');
-        const endIdx = text.lastIndexOf('}') + 1;
-        const jsonStr = text.substring(startIdx, endIdx);
-        return JSON.parse(jsonStr);
-      } catch (e) {
-        return { status: "ready", message: "Error técnico en datos." };
-      }
-    }
+    if (!response.ok) throw new Error("Error de conexión con el backend");
 
-    if (tools && tools.length > 0) {
-      return {
-        text: result.text || "Confirmado. Sistemas operativos.",
-        functionCalls: result.functionCalls
-      };
-    }
-
-    return result.text || "Confirmado. Sistemas operativos.";
+    const data = await response.json();
+    return isJson ? JSON.parse(data.text) : data;
 
   } catch (error: any) {
     console.error("❌ FALLO DE COMUNICACIÓN NEXUS:", error.message);
-    if (isJson) return { status: "ready", message: "Modo de contingencia activo." };
-    if (tools && tools.length > 0) {
-      return { text: "Error de enlace táctico. Operando en sistemas redundantes..." };
-    }
-    return "Error de enlace táctico. Operando en sistemas redundantes...";
+    return isJson 
+      ? { status: "ready", message: "Modo de contingencia activo." }
+      : "Error de enlace táctico. Operando en sistemas redundantes...";
   }
 }
-

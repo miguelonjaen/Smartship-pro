@@ -348,6 +348,23 @@ const FleetManager: React.FC<FleetManagerProps> = ({
                       />
                     </div>
                   ))}
+                  {/* 🛥️ NUEVO: Selector de Icono Náutico para el Mapa */}
+<div className="space-y-3 group">
+  <div className="flex items-center gap-2 px-2">
+    <span className="text-cyan-500"><Navigation size={14} className="rotate-45" /></span>
+    <label className="text-[10px] font-black text-slate-500 uppercase tracking-[0.3em]">Tactical Map Marker</label>
+  </div>
+  <select
+    name="icono_url"
+    value={selectedBarco.icono_url || 'barco-player.png'}
+    onChange={(e) => setSelectedBarco({ ...selectedBarco, icono_url: e.target.value })}
+    className="w-full bg-white/5 border border-white/10 p-5 rounded-2xl text-white font-bold focus:border-cyan-500/50 focus:bg-slate-900 outline-none transition-all shadow-inner appearance-none cursor-pointer"
+  >
+    <option value="barco-player.png" className="bg-slate-950 text-white">Velero Realista (Render GIMP)</option>
+    <option value="barco-rojo.png" className="bg-slate-950 text-white">Velero de Flota Rojo</option>
+    <option value="patrullera.png" className="bg-slate-950 text-white">Unidad de Vigilancia</option>
+  </select>
+</div>
 
                   {/* Niveles Críticos (Real Storage) */}
                   <div className="col-span-full grid grid-cols-1 md:grid-cols-2 gap-8 pt-6 border-t border-white/5">
@@ -625,6 +642,25 @@ const FleetManager: React.FC<FleetManagerProps> = ({
                 <option value="Yate">Yate 🚢</option>
                 <option value="Semirrígida">Semirrígida 🛶</option>
               </select>
+              {/* 🛥️ Marcador Táctico Inicial para el Mapa */}
+<div className="space-y-1">
+  <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2">Marcador de Mapa</label>
+  <div className="relative">
+    <select 
+      value={newShip.icono_url || 'barco-player.png'} 
+      onChange={e => setNewShip({...newShip, icono_url: e.target.value})} 
+      className="w-full px-4 py-3 bg-slate-900 border border-slate-800 rounded-xl text-white text-xs outline-none focus:border-cyan-500/50 appearance-none cursor-pointer"
+    >
+      <option value="barco-player.png">Velero Realista (Render GIMP)</option>
+      <option value="barco-rojo.png">Velero de Flota Rojo</option>
+      <option value="patrullera.png">Unidad de Vigilancia</option>
+    </select>
+    {/* Flecha estética decorativa para mantener el estilo visual */}
+    <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-4 text-slate-500">
+      <Navigation className="w-3 h-3 rotate-135" />
+    </div>
+  </div>
+</div>
             </div>
             <div className="space-y-1">
               <label className="text-[8px] font-black text-slate-500 uppercase tracking-widest ml-2">MMSI</label>

@@ -1,5 +1,7 @@
 process.env['ELECTRON_DISABLE_SECURITY_WARNINGS'] = 'true';
-const { app, BrowserWindow, ipcMain } = require('electron');
+// 🛠️ Corrección: Se añade 'dialog' a las importaciones de electron
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
+const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
 
@@ -27,6 +29,7 @@ function createWindow() {
       preload: path.join(__dirname, 'electron-preload.js'),
       contextIsolation: true,
       nodeIntegration: false,
+      webSecurity: false,
     },
   });
 
@@ -79,6 +82,83 @@ ipcMain.on('connect-nmea', (event, portPath) => {
     console.log(`Conectado a puerto NMEA: ${portPath}`);
   } catch (error) {
     if (mainWindow) mainWindow.webContents.send('nmea-error', `Fallo al abrir puerto: ${error.message}`);
+  }
+});
+
+// ========================================================
+// 📁 CANALES IPC ÚNICOS PARA EL REPOSITORIO DE CARTAS NÁUTICAS
+// ========================================================
+
+// 1. Obtener o crear la carpeta por defecto en Documentos (SOLO UNO)
+ipcMain.handle('get-default-charts-path', () => {
+  const defaultPath = path.join(app.getPath('documents'), 'SmartShip_Cartas');
+  if (!fs.existsSync(defaultPath)) {
+    fs.mkdirSync(defaultPath, { recursive: true });
+  }
+  return defaultPath;
+});
+
+// 2. Abrir ventana de Windows para que el usuario elija su propia carpeta
+ipcMain.handle('select-charts-directory', async () => {
+  const result = await dialog.showOpenDialog({
+    properties: ['openDirectory', 'createDirectory'],
+    title: 'Seleccionar Repositorio de Cartas Náuticas PRO'
+  });
+  if (result.canceled) {
+    return null;
+  } else {
+    return result.filePaths[0];
+  }
+});
+
+// 3. Listar los archivos de mapas agrupados en un solo manejador limpio (SOLO UNO)
+// 📦 Busca esta función en tu backend de Electron (main.js)
+// En tu backend (main.js) busca el handler de 'list-charts-files'
+ipcMain.handle('list-charts-files', async (event, args) => {
+  try {
+    // Comprobamos si React nos envió la ruta directamente como un texto, o metida dentro de un objeto
+    let folderPath = "";
+    if (typeof args === 'string') {
+      folderPath = args;
+    } else if (args && typeof args === 'object' && args.path) {
+      folderPath = args.path;
+    } else if (args && typeof args === 'object' && args.folderPath) {
+      folderPath = args.folderPath;
+    }
+
+    console.log("=========================================");
+    console.log("🚨 EL BACKEND HA RECIBIDO LA RUTA:", folderPath);
+    console.log("=========================================");
+
+    if (!folderPath) {
+      console.log("❌ Error: La ruta recibida está vacía o es undefined.");
+      return [];
+    }
+
+    // Limpiamos la ruta de espacios y normalizamos barras de Windows
+    const normalizedPath = path.resolve(folderPath.trim());
+
+    if (!fs.existsSync(normalizedPath)) {
+      console.log("❌ La ruta no existe en el disco duro:", normalizedPath);
+      return [];
+    }
+
+    // Leemos la carpeta de forma nativa
+    const todosLosArchivos = fs.readdirSync(normalizedPath);
+    console.log("-> Archivos brutos encontrados por Node:", todosLosArchivos);
+
+    // Filtramos ignorando mayúsculas/minúsculas para .mbtiles y .geojson
+    const cartasValidadas = todosLosArchivos.filter(file => {
+      const nombreMinuscula = file.toLowerCase();
+      return nombreMinuscula.endsWith('.mbtiles') || nombreMinuscula.endsWith('.geojson');
+    });
+
+    console.log("✅ CARTAS ENCONTRADAS Y ENVIADAS A REACT:", cartasValidadas);
+    return cartasValidadas;
+
+  } catch (error) {
+    console.error("❌ Error grave en el backend leyendo la carpeta:", error);
+    return [];
   }
 });
 
