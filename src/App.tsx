@@ -464,7 +464,7 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
       if (!response) throw new Error("Respuesta vacía");
       
       const aiText = response.text || "Orden procesada.";
-      const functionCalls = response.functionCalls;
+      const functionCalls = response.functionCalls as Array<{ name?: string; [key: string]: any }> | undefined;
 
       // Ejecutar herramientas si existen
       if (functionCalls && functionCalls.length > 0) {
@@ -498,7 +498,7 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
             metadatos: { 
               role: 'ai',
               shipName: shipName,
-              executedTools: functionCalls?.map(c => c.name)
+              executedTools: functionCalls?.map((c: any) => c.name)
             }
           });
           // Refrescar historial
@@ -2343,7 +2343,7 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
           'Planificada',
           navigationDestination || undefined,
           true,
-          activeRouteId
+          activeRouteId || undefined
         );
       } else {
         // En libre, solo mencionamos que se ha activado el sistema
@@ -3042,9 +3042,9 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
       const updates = {
         mmsi: selectedBarco.mmsi,
         ais: selectedBarco.ais,
-        ultimo_mantenimiento_motor: selectedBarco.ultimo_mantenimiento_motor || null,
-        ultima_revision_balsa: selectedBarco.ultima_revision_balsa || null,
-        ultima_revision_extintores: selectedBarco.ultima_revision_extintores || null,
+        ultimo_mantenimiento_motor: selectedBarco.ultimo_mantenimiento_motor ?? undefined,
+        ultima_revision_balsa: selectedBarco.ultima_revision_balsa ?? undefined,
+        ultima_revision_extintores: selectedBarco.ultima_revision_extintores ?? undefined,
         eslora: selectedBarco.eslora,
         documentacion_url: selectedBarco.documentacion_url,
         manual_pdf: selectedBarco.manual_pdf,
@@ -3744,7 +3744,7 @@ if (archivo.toLowerCase().endsWith('.mbtiles')) {
                        // ✅ REEMPLAZAR EL BLOQUE INTERIOR POR ESTO:
 icon={L.icon({
   // Ruta absoluta a la carpeta public
-  iconUrl: '/barco-player.png', 
+  iconUrl: 'barco-player.png', 
   
   // Tamaño [Ancho, Alto]. Ajusta según las proporciones de tu render (suele ser vertical)
   iconSize: [25, 50], 
@@ -3829,7 +3829,7 @@ icon={L.icon({
   key="buque-insignia-unico"
   position={[shipPosition.lat, shipPosition.lng]}
   icon={L.icon({
-    iconUrl: '/barco-player.png',
+    iconUrl: 'barco-player.png',
     iconSize: [36, 36],     // 👈 Cambiar a una escala cuadrada o proporcional a tu PNG original
   iconAnchor: [18, 18],   // La mitad exacta de iconSize para que rote sobre su eje real
   popupAnchor: [0, -18]

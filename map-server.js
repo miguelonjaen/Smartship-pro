@@ -17,12 +17,14 @@ const supabase = createClient(
 );
 
 
-// const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// 🔐 SEGURIDAD: API key solo se carga en el servidor (NUNCA en cliente)
+if (!process.env.GEMINI_API_KEY) {
+  console.error("❌ CRÍTICO: GEMINI_API_KEY no está configurada en .env");
+  process.exit(1);
+}
 
-// Por esto (usa tu clave nueva, sin espacios):
-const genAI = new GoogleGenerativeAI("AIzaSyAnUglszmg8sXIuQmfiewZiXBvbHHkLUXo");
-// Y añade este log para confirmar
-console.log("🔑 Clave configurada manualmente:", "AIza...");
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+console.log("🔑 Clave de Gemini cargada desde variables de entorno (servidor seguro)");
 
 // --- ENDPOINTS ---
 

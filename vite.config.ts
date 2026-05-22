@@ -6,7 +6,9 @@ import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig(({mode}) => {
   const env = loadEnv(mode, '.', '');
+  const isElectron = process.env.IS_ELECTRON === 'true';
   return {
+    base: './',
     plugins: [
       react(), 
       tailwindcss(),
@@ -34,7 +36,8 @@ export default defineConfig(({mode}) => {
       })
     ],
     define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
+      // 🔐 SEGURIDAD: NO exponemos la API key de Gemini al cliente
+      // Solo el servidor backend (map-server.js) maneja las credenciales
     },
     resolve: {
       alias: {

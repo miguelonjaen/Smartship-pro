@@ -310,7 +310,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "cabuyería",
       description:
         "El rey de los nudos marineros. Forma una gaza fija al final de un cabo que no se desliza ni se traba, y se deshace con extrema facilidad incluso bajo tensiones masivas.",
-      imageUrl: "/nudos/as-de-guia.jpg",
+      imageUrl: "nudos/as-de-guia.jpg",
       steps: [
         "Pasa el chicote por el revés para formar una pequeña gaza o lazo base.",
         'Introduce el chicote de abajo hacia arriba a través de la gaza simulando "la serpiente que sale del pozo".',
@@ -326,7 +326,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "cabuyería",
       description:
         "Nudo de amarre rápido por excelencia. Ideal para sujetar defensas a las guardamancebos o encapillar cabos en un noray. Exige tensión continua para evitar deslices.",
-      imageUrl: "/nudos/ballestrinque.jpg",
+      imageUrl: "nudos/ballestrinque.jpg",
       steps: [
         "Da una vuelta completa con el cabo alrededor del poste o tubo de acero.",
         'Cruza el chicote por encima de la primera vuelta formando una "X".',
@@ -342,7 +342,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "cabuyería",
       description:
         "Diseñado estrictamente para unir dos cabos de igual mena (grosor) y material. Históricamente usado para recoger los rizos de las velas mayores.",
-      imageUrl: "/nudos/nudo-llano.png",
+      imageUrl: "nudos/nudo-llano.png",
       steps: [
         "Cruza el chicote de la izquierda sobre el de la derecha y realiza una vuelta simple.",
         "Toma el chicote derecho resultante y crúzalo sobre el izquierdo.",
@@ -358,7 +358,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "cabuyería",
       description:
         "Nudo de tope fundamental. Evita que las escotas, drizas o cabos de maniobra se escapen por las poleas, mordazas o guías del puente.",
-      imageUrl: "/nudos/nudo-en-ocho.png",
+      imageUrl: "nudos/nudo-en-ocho.png",
       steps: [
         "Forma un seno o bucle con el chicote pasando por delante del firme.",
         "Da una vuelta completa por detrás del firme.",
@@ -374,7 +374,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "cabuyería",
       description:
         "El amarre definitivo para elementos sometidos a tracción constante y humedad extrema, como el grillete de un ancla de fondeo o el cabo de un rezón.",
-      imageUrl: "/nudos/vuelta-de-rezon.jpg",
+      imageUrl: "nudos/vuelta-de-rezon.jpg",
       steps: [
         "Da dos vueltas redondas completas alrededor de la argolla o grillete.",
         "Pasa el chicote por detrás del firme e introdúcelo por dentro de las dos vueltas iniciales.",
@@ -919,7 +919,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Alta",
       altitude: "6.000 – 10.000 m",
-      imageUrl: "/nubes/cirros.jpg",
+      imageUrl: "nubes/cirros.jpg",
       description:
         "Nubes compuestas por cristales de hielo. De color blanco con forma fibrosa o filamentosa (cirrus en latín: sortija, cabello). No producen generalmente precipitaciones.",
       precipitation:
@@ -933,7 +933,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Alta",
       altitude: "6.000 – 10.000 m",
-      imageUrl: "/nubes/cirrocumulos.jpg",
+      imageUrl: "nubes/cirrocumulos.jpg",
       description:
         "Compuestas de cristales de hielo o gotitas de agua. Tienen forma de pequeños copos de algodón blancos dispuestos en bandas o grupos regulares. Producen el llamado 'cielo ajedrezado' o 'cielo mackerel'.",
       precipitation:
@@ -947,7 +947,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Alta",
       altitude: "6.000 – 12.000 m",
-      imageUrl: "/nubes/cirrostrato.jpg",
+      imageUrl: "nubes/cirrostrato.jpg",
       description:
         "De la misma familia que los cirros, formadas por cristales de hielo. Cubren gran parte del cielo dando un aspecto lechoso o velo blanquecino. Producen el fenómeno del 'halo solar' o 'halo lunar'. Pueden anunciar precipitaciones en las próximas horas.",
       precipitation:
@@ -961,7 +961,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Media",
       altitude: "2.000 – 4.000 m",
-      imageUrl: "/nubes/altocumulos.jpg",
+      imageUrl: "nubes/altocumulos.jpg",
       description:
         "Formadas por gotitas de agua mezclada con polvo de aspecto fibroso. Existen varios tipos, a veces presentes simultáneamente en el mismo cielo. Su transparencia varía mucho: pueden ser blancas, grises o incluso negras según su grosor.",
       precipitation:
@@ -975,7 +975,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Media",
       altitude: "2.000 – 4.000 m",
-      imageUrl: "/nubes/altoestratos.jpg",
+      imageUrl: "nubes/altoestratos.jpg",
       description:
         "Formadas por hielo y agua, pueden llegar a cubrir el cielo de manera total dando un aspecto gris uniforme. Se forman por grandes masas de aire que se condensan al ascender. Generalmente se forman antes de las tormentas.",
       precipitation:
@@ -989,7 +989,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Baja",
       altitude: "150 – 1.600 m",
-      imageUrl: "/nubes/nimbostratos.jpg",
+      imageUrl: "nubes/nimbostratos.jpg",
       description:
         "Formadas por gotas de agua fría, cristales o nieve. De color gris oscuro con suficiente espesor como para no dejar ver el sol o la luna. Aspecto velado debido a las precipitaciones continuas de agua o nieve que caen de ellas.",
       precipitation:
@@ -1003,7 +1003,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Baja",
       altitude: "500 – 1.600 m",
-      imageUrl: "/nubes/estratocumulos.jpg",
+      imageUrl: "nubes/estratocumulos.jpg",
       description:
         "Formadas por gotitas de agua o nieve. La nube más común de todas. De color blancas o grisáceas. En verano suelen estar asociadas al buen tiempo, sobre todo cuando aparecen a media tarde como restos de cúmulos disipados.",
       precipitation:
@@ -1017,7 +1017,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Baja",
       altitude: "< 500 m",
-      imageUrl: "/nubes/estratos.jpg",
+      imageUrl: "nubes/estratos.jpg",
       description:
         "Formada por gotitas de agua o hielo. De color grisáceo uniforme de la que pueden caer llovizna, láminas de hielo o nieve menuda (cinarra). Son la nube más baja y la más parecida a la niebla elevada.",
       precipitation:
@@ -1031,7 +1031,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Vertical",
       altitude: "500 – 1.600 m (base)",
-      imageUrl: "/nubes/cumulos.jpg",
+      imageUrl: "nubes/cumulos.jpg",
       description:
         "Formadas por gotitas de agua y, en las partes donde la temperatura está bajo cero, por cristales de hielo. Se desarrollan de manera vertical. En verano su tiempo asociado es bueno: cielo de buen tiempo.",
       precipitation:
@@ -1045,7 +1045,7 @@ export const VADEMECUM_DATA: Record<string, VademecumItem[]> = {
       category: "nubes",
       cloudFamily: "Vertical",
       altitude: "300 – 1.700 m (base)",
-      imageUrl: "/nubes/cumulonimbos.jpg",
+      imageUrl: "nubes/cumulonimbos.jpg",
       description:
         "Formadas por gotas de agua, cristales de hielo en su zona más alta, conteniendo en su interior grandes gotas de agua, nieve e incluso granizo. La nube de tormenta por excelencia. Producen fuertes lluvias e incluso granizadas.",
       precipitation:

@@ -380,17 +380,17 @@ const Vademecum: React.FC<VademecumProps> = ({ onClose }) => {
                 className="bg-slate-900/50 border border-slate-800 hover:border-cyan-500/30 rounded-[2rem] p-5 flex flex-col justify-between transition-all group shadow-xl cursor-pointer"
               >
                 <div>
-                  {/* Foto del nudo: Wikimedia CDN → local /nudos/ → placeholder */}
+                  {/* Foto del nudo: Wikimedia CDN → local nudos/ → placeholder */}
                   <div className="w-full h-44 bg-slate-950 rounded-2xl border border-slate-800/80 overflow-hidden mb-4 shadow-inner flex items-center justify-center relative">
                     <img
-                      src={item.imageUrl || `/nudos/${item.id}.png`}
+                      src={item.imageUrl || `nudos/${item.id}.png`}
                       alt={item.title}
                       className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                       onError={(e) => {
                         const target = e.target as HTMLImageElement;
                         // Si falla la URL externa, intentar local
                         if (item.imageUrl && target.src === item.imageUrl) {
-                          target.src = `/nudos/${item.id}.png`;
+                          target.src = `nudos/${item.id}.png`;
                         } else {
                           target.src = `https://placehold.co/400x250/0f172a/22d3ee?text=${encodeURIComponent(item.title)}`;
                         }
@@ -419,96 +419,101 @@ const Vademecum: React.FC<VademecumProps> = ({ onClose }) => {
         {/* 3. SECCIÓN BALIZAMIENTO: IALA Completa con Imágenes Oficiales */}
         {activeSubTab === "balizamiento" && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 pb-8">
-            {filteredData.map((item) => (
-              <div
-                key={item.id}
-                onClick={() => setSelectedItem(item)}
-                className="bg-slate-900/50 border border-slate-800 hover:border-cyan-500/40 rounded-[2rem] overflow-hidden flex flex-col cursor-pointer transition-all duration-200 group shadow-xl hover:shadow-cyan-900/20"
-              >
-                {/* Imagen oficial IALA — SVG de Wikimedia Commons */}
-                <div className="relative bg-slate-950 flex items-center justify-center h-52 overflow-hidden">
-                  <img
-                    src={item.imageUrl || `/balizas/${item.id}.png`}
-                    alt={item.title}
-                    className="h-full w-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
-                    onError={(e) => {
-                      // Si falla la imagen, ocultar y mostrar el color CSS de fondo
-                      const target = e.target as HTMLImageElement;
-                      target.style.display = "none";
-                      if (target.parentElement) {
-                        const fallback = target.parentElement.querySelector(
-                          ".buoy-fallback",
-                        ) as HTMLElement;
-                        if (fallback) fallback.style.display = "flex";
-                      }
-                    }}
-                  />
-                  {/* Fallback CSS buoy (oculto por defecto) */}
-                  <div className="buoy-fallback hidden absolute inset-0 items-center justify-center">
-                    <div
-                      className={cn(
-                        "w-12 h-28 relative flex flex-col overflow-hidden shadow-2xl border border-white/10",
-                        item.isSpherical ? "rounded-full" : "rounded-t-full",
-                      )}
-                    >
-                      {item.isStriped ? (
-                        <div className="absolute inset-0 flex">
-                          <div className="flex-1 bg-red-600" />
-                          <div className="flex-1 bg-white" />
-                          <div className="flex-1 bg-red-600" />
-                        </div>
-                      ) : (
-                        <>
-                          <div
-                            className={cn(
-                              "flex-1",
-                              item.colorTop || "bg-slate-950",
-                            )}
-                          />
-                          <div
-                            className={cn(
-                              "h-8",
-                              item.colorMiddle || "bg-slate-950",
-                            )}
-                          />
-                          <div
-                            className={cn(
-                              "flex-1",
-                              item.colorBottom || "bg-slate-950",
-                            )}
-                          />
-                        </>
-                      )}
+            {filteredData.map((item) => {
+              const normalizedImageUrl = item.imageUrl?.replace(/^\/+/, '') || `balizas/${item.id}.png`;
+              const imageSrc = `${import.meta.env.BASE_URL}${normalizedImageUrl}`;
+
+              return (
+                <div
+                  key={item.id}
+                  onClick={() => setSelectedItem(item)}
+                  className="bg-slate-900/50 border border-slate-800 hover:border-cyan-500/40 rounded-[2rem] overflow-hidden flex flex-col cursor-pointer transition-all duration-200 group shadow-xl hover:shadow-cyan-900/20"
+                >
+                  {/* Imagen oficial IALA — SVG de Wikimedia Commons */}
+                  <div className="relative bg-slate-950 flex items-center justify-center h-52 overflow-hidden">
+                    <img
+                      src={imageSrc}
+                      alt={item.title}
+                      className="h-full w-full object-contain p-4 group-hover:scale-105 transition-transform duration-300"
+                      onError={(e) => {
+                        // Si falla la imagen, ocultar y mostrar el color CSS de fondo
+                        const target = e.target as HTMLImageElement;
+                        target.style.display = "none";
+                        if (target.parentElement) {
+                          const fallback = target.parentElement.querySelector(
+                            ".buoy-fallback",
+                          ) as HTMLElement;
+                          if (fallback) fallback.style.display = "flex";
+                        }
+                      }}
+                    />
+                    {/* Fallback CSS buoy (oculto por defecto) */}
+                    <div className="buoy-fallback hidden absolute inset-0 items-center justify-center">
+                      <div
+                        className={cn(
+                          "w-12 h-28 relative flex flex-col overflow-hidden shadow-2xl border border-white/10",
+                          item.isSpherical ? "rounded-full" : "rounded-t-full",
+                        )}
+                      >
+                        {item.isStriped ? (
+                          <div className="absolute inset-0 flex">
+                            <div className="flex-1 bg-red-600" />
+                            <div className="flex-1 bg-white" />
+                            <div className="flex-1 bg-red-600" />
+                          </div>
+                        ) : (
+                          <>
+                            <div
+                              className={cn(
+                                "flex-1",
+                                item.colorTop || "bg-slate-950",
+                              )}
+                            />
+                            <div
+                              className={cn(
+                                "h-8",
+                                item.colorMiddle || "bg-slate-950",
+                              )}
+                            />
+                            <div
+                              className={cn(
+                                "flex-1",
+                                item.colorBottom || "bg-slate-950",
+                              )}
+                            />
+                          </>
+                        )}
+                      </div>
+                    </div>
+                    {/* IALA badge */}
+                    <div className="absolute top-2.5 right-2.5 bg-amber-950/90 border border-amber-700/60 px-2 py-0.5 rounded-md text-[8px] font-black text-amber-400 uppercase tracking-widest">
+                      IALA A
                     </div>
                   </div>
-                  {/* IALA badge */}
-                  <div className="absolute top-2.5 right-2.5 bg-amber-950/90 border border-amber-700/60 px-2 py-0.5 rounded-md text-[8px] font-black text-amber-400 uppercase tracking-widest">
-                    IALA A
-                  </div>
-                </div>
 
-                {/* Info card */}
-                <div className="p-4 flex flex-col gap-2 flex-1 text-center">
-                  <h3 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-cyan-400 transition-colors leading-tight">
-                    {item.title}
-                  </h3>
-                  <div className="space-y-1.5 text-left text-[10px] font-mono text-slate-400 border-t border-slate-800/70 pt-2 mt-1">
-                    <p className="truncate">
-                      <span className="text-cyan-500 font-bold">▲ </span>
-                      {item.topMark || "—"}
-                    </p>
-                    <p className="truncate">
-                      <span className="text-slate-500 font-bold">◉ </span>
-                      {item.buoyColor || "—"}
-                    </p>
-                    <p className="text-amber-400 truncate">
-                      <span className="text-slate-500">✦ </span>
-                      {item.lightRitmo || "—"}
-                    </p>
+                  {/* Info card */}
+                  <div className="p-4 flex flex-col gap-2 flex-1 text-center">
+                    <h3 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-cyan-400 transition-colors leading-tight">
+                      {item.title}
+                    </h3>
+                    <div className="space-y-1.5 text-left text-[10px] font-mono text-slate-400 border-t border-slate-800/70 pt-2 mt-1">
+                      <p className="truncate">
+                        <span className="text-cyan-500 font-bold">▲ </span>
+                        {item.topMark || "—"}
+                      </p>
+                      <p className="truncate">
+                        <span className="text-slate-500 font-bold">◉ </span>
+                        {item.buoyColor || "—"}
+                      </p>
+                      <p className="text-amber-400 truncate">
+                        <span className="text-slate-500">✦ </span>
+                        {item.lightRitmo || "—"}
+                      </p>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
         {/* 4. SECCIÓN BEAUFORT: Escala Completa de Fuerza de Viento 0 a 12 */}
@@ -709,7 +714,7 @@ const Vademecum: React.FC<VademecumProps> = ({ onClose }) => {
                     {/* Photo */}
                     <div className="relative h-44 bg-slate-950 overflow-hidden">
                       <img
-                        src={item.imageUrl || `/nubes/${item.id}.jpg`}
+                        src={item.imageUrl || `nubes/${item.id}.jpg`}
                         alt={item.title}
                         className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
                         onError={(e) => {

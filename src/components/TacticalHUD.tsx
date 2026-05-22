@@ -20,6 +20,8 @@ import { SailSteerPage } from "./SailSteerPage";
 import { RaceTimerPage } from "./RaceTimerPage";
 import { DepthPage } from "./DepthPage";
 import { WindAnalogPage } from "./WindAnalogPage";
+import { WindInstrument } from "./WindInstrument";
+import H5000Frame from "./H5000Frame";
 import { TravelLogPage } from "./TravelLogPage";
 import { EnginePage } from "./EnginePage";
 import { AISPage } from "./AISPage";
@@ -116,6 +118,7 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
   weatherData,
 }) => {
   const [isPagesMenuOpen, setIsPagesMenuOpen] = useState(false);
+  const bgWindPages = ["analog", "windplot", "pilot"];
 
   const pages = [
     {
@@ -184,19 +187,6 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
           items={[
             { label: "BSPD", value: sog.toFixed(1), unit: "KT" },
             { label: "DEPTH", value: depth.toFixed(1), unit: "M" },
-          ]}
-        />
-      ),
-    },
-    {
-      id: "basic_wind",
-      title: "VIENTO BÁSICO",
-      component: (
-        <BasicDataPage
-          title="VIENTO BÁSICO"
-          items={[
-            { label: "TWA", value: Math.round(twa).toString() + "°" },
-            { label: "TWS", value: tws.toFixed(1), unit: "KT" },
           ]}
         />
       ),
@@ -274,46 +264,42 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
           initial={{ opacity: 0, x: -10, scale: 0.98 }}
           animate={{ opacity: 1, x: 0, scale: 1 }}
           exit={{ opacity: 0, x: -10, scale: 0.98 }}
-          className="fixed left-[94px] top-[100px] z-[7100] w-[310px] h-auto bg-[#0a0a0a] rounded-[30px] shadow-[0_60px_100px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.1)] overflow-hidden flex flex-col pointer-events-auto select-none border-[12px] border-[#121212]"
+          className="fixed left-[64px] top-[64px] z-[7100] w-[360px] aspect-[9/16] max-w-[calc(100vw-40px)] max-h-[calc(100vh-40px)] bg-[#0a0a0a] rounded-[30px] shadow-[0_60px_100px_rgba(0,0,0,0.9),inset_0_2px_4px_rgba(255,255,255,0.1)] overflow-hidden flex flex-col pointer-events-auto select-none border-[12px] border-[#121212]"
           style={{ fontFamily: "'Inter', sans-serif" }}
         >
           {/* Matte Bezel inner groove */}
           <div className="absolute inset-0 pointer-events-none border border-black/40 rounded-[18px] z-50 shadow-[inset_0_0_10px_rgba(0,0,0,0.5)]" />
 
-          {/* Hardware Status Area (Top of screen) */}
-          <div className="bg-black px-4 pt-3 pb-1 flex items-center justify-between z-40 border-b border-white/5">
-            <div className="flex items-center gap-2">
-              <div
-                className={cn(
-                  "w-1.5 h-1.5 rounded-full shadow-lg transition-all duration-1000",
-                  isNavigating ? "bg-[#00ffcc] animate-pulse" : "bg-slate-800",
-                )}
-              />
-              <span className="text-[7px] font-black text-slate-500 uppercase tracking-[0.3em] font-sans">
-                {pages[initialPageIndex].title}
-              </span>
-            </div>
-            <button
-              onClick={onClose}
-              className="opacity-20 hover:opacity-100 transition-opacity"
-            >
-              <X size={12} className="text-white" />
-            </button>
-          </div>
+          {/* Header is provided by H5000Frame to avoid duplication */}
 
           {/* Active Display Panel (OLED BLACK) */}
-          <div className="bg-black aspect-[3/4] relative overflow-hidden flex flex-col">
+          <div className="bg-black relative overflow-hidden flex-1 flex flex-col">
             <AnimatePresence mode="wait">
               <motion.div
-                key={initialPageIndex}
-                initial={{ opacity: 0 }}
-                animate={{ opacity: 1 }}
-                exit={{ opacity: 0 }}
-                transition={{ duration: 0.1 }}
-                className="flex-grow flex flex-col"
-              >
-                {pages[initialPageIndex].component}
-              </motion.div>
+                  key={initialPageIndex}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  exit={{ opacity: 0 }}
+                  transition={{ duration: 0.12 }}
+                  className="flex-grow flex flex-col"
+                >
+                  <H5000Frame title={pages[initialPageIndex].title} hdg={hdg} isNavigating={isNavigating} onClose={onClose}>
+                    {bgWindPages.includes(pages[initialPageIndex].id) ? (
+                      <div className="flex-grow overflow-auto p-4 custom-scrollbar flex items-center justify-center">
+                        <WindInstrument
+                          awa={awa}
+                          aws={aws}
+                          twa={twa}
+                          tws={tws}
+                          heading={hdg}
+                          className=""
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-3 h-full overflow-auto custom-scrollbar">{pages[initialPageIndex].component}</div>
+                    )}
+                  </H5000Frame>
+                </motion.div>
             </AnimatePresence>
 
             {/* Pages Menu Overlay */}
@@ -358,7 +344,7 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
             </AnimatePresence>
           </div>
           {/* Triton 2 Hardware Physical Buttons */}
-          <div className="bg-[#121212] px-3 pt-5 pb-9 flex items-center justify-center gap-2.5 border-t border-black relative">
+          <div className="bg-[#121212] px-2 py-2 flex items-center justify-center gap-2 border-t border-black relative">
             {/* Surface finish texture overlay */}
             <div
               className="absolute inset-0 opacity-[0.04] pointer-events-none"
@@ -372,7 +358,7 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
             {/* Button: PAGES */}
             <button
               onClick={() => setIsPagesMenuOpen(!isPagesMenuOpen)}
-              className="flex flex-col items-center justify-center w-[62px] h-[44px] bg-[#1a1a1a] rounded-lg border-t border-white/10 border-b-[5px] border-black active:translate-y-[2px] active:border-b-[2px] transition-all shadow-[0_6px_12px_rgba(0,0,0,0.6)] group z-10"
+              className="flex flex-col items-center justify-center w-[48px] h-[32px] bg-[#1a1a1a] rounded-lg border-t border-white/10 border-b-[3px] border-black active:translate-y-[1px] active:border-b-[1px] transition-all shadow-[0_3px_8px_rgba(0,0,0,0.35)] group z-10"
             >
               <span className="text-[7px] font-black text-slate-500 group-hover:text-white transition-colors tracking-tight">
                 PAGES
@@ -390,23 +376,23 @@ export const TacticalHUD: React.FC<TacticalHUDProps> = ({
             </button>
 
             {/* Directional Pad */}
-            <div className="flex items-center gap-1 p-1 bg-[#050505] rounded-2xl border border-white/5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.8)] z-10">
+            <div className="flex items-center gap-1 p-1 bg-[#050505] rounded-2xl border border-white/5 shadow-[inset_0_2px_4px_rgba(0,0,0,0.7)] z-10">
               <button
                 onClick={prevPage}
-                className="w-12 h-12 flex items-center justify-center bg-[#1c1c1c] rounded-full border-t border-white/10 border-b-[5px] border-black active:translate-y-[2px] active:border-b-[2px] transition-all text-slate-500 hover:text-white shadow-xl"
+                className="w-9 h-9 flex items-center justify-center bg-[#1c1c1c] rounded-full border-t border-white/10 border-b-[3px] border-black active:translate-y-[1px] active:border-b-[1px] transition-all text-slate-500 hover:text-white shadow-xl"
               >
-                <ChevronLeft size={22} />
+                <ChevronLeft size={16} />
               </button>
               <button
                 onClick={nextPage}
-                className="w-12 h-12 flex items-center justify-center bg-[#1c1c1c] rounded-full border-t border-white/10 border-b-[5px] border-black active:translate-y-[2px] active:border-b-[2px] transition-all text-slate-500 hover:text-white shadow-xl"
+                className="w-9 h-9 flex items-center justify-center bg-[#1c1c1c] rounded-full border-t border-white/10 border-b-[3px] border-black active:translate-y-[1px] active:border-b-[1px] transition-all text-slate-500 hover:text-white shadow-xl"
               >
-                <ChevronRight size={22} />
+                <ChevronRight size={16} />
               </button>
             </div>
 
             {/* Button: MENU */}
-            <button className="flex flex-col items-center justify-center w-[62px] h-[44px] bg-[#1a1a1a] rounded-lg border-t border-white/10 border-b-[5px] border-black active:translate-y-[2px] active:border-b-[2px] transition-all shadow-[0_6px_12px_rgba(0,0,0,0.6)] group z-10">
+            <button className="flex flex-col items-center justify-center w-[48px] h-[32px] bg-[#1a1a1a] rounded-lg border-t border-white/10 border-b-[3px] border-black active:translate-y-[1px] active:border-b-[1px] transition-all shadow-[0_3px_8px_rgba(0,0,0,0.35)] group z-10">
               <span className="text-[7px] font-black text-slate-500 group-hover:text-white transition-colors tracking-tight">
                 MENU
               </span>

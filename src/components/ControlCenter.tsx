@@ -37,6 +37,7 @@ import { TacticalHUD } from './TacticalHUD';
 import { calculateDistanceNM } from '../lib/utils';
 import { WindInstrument } from './WindInstrument';
 import { callGemini } from '../lib/gemini';
+import H5000Frame from './H5000Frame';
 
 const NAUTICAL_PORTS: Record<string, [number, number]> = {
   'adra': [36.744, -3.015],
@@ -551,27 +552,8 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({
         priority={isDepthCritical ? 'critical' : 'info'}
         isProcessing={isProcessing}
       />
-      {/* Header */}
-      <div className="p-6 flex items-center justify-between border-b border-slate-900 bg-black/40">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-cyan-600/20 rounded-xl flex items-center justify-center border border-cyan-500/30">
-            <Gauge className="w-5 h-5 text-cyan-400" />
-          </div>
-          <div>
-            <h2 className="text-sm font-black uppercase tracking-[0.2em] text-white">SISTEMAS</h2>
-            <p className="text-[8px] font-bold text-cyan-500 uppercase tracking-widest">Protocolo Activo</p>
-          </div>
-        </div>
-        <button 
-          onClick={onClose}
-          className="p-2 hover:bg-red-500/10 rounded-full transition-colors group z-[110]"
-        >
-          <X className="w-6 h-6 text-slate-500 group-hover:text-red-500" />
-        </button>
-      </div>
-
-      {/* Main Content Area */}
-      <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
+      <H5000Frame title="SISTEMAS" hdg={Math.round(currentHeading)} isNavigating={isTravesiaActive} onClose={onClose}>
+        <div className="flex-1 overflow-y-auto custom-scrollbar p-0">
         {localActiveTab === 'viento' && (
           <div className="h-full flex flex-col p-4">
             {/* Tactical Wind Hub */}
@@ -995,6 +977,7 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({
           </button>
         ))}
       </div>
+      </H5000Frame>
     </motion.div>
   );
 };
