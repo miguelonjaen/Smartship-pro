@@ -4,6 +4,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const fs = require('fs');
 const path = require('path');
 const { autoUpdater } = require('electron-updater');
+const log = require('electron-log');
 
 // Importación dinámica para evitar errores si no están instalados
 let SerialPort;
@@ -15,6 +16,119 @@ try {
 } catch (e) {
   console.error("Librerías de puerto serie no encontradas");
 }
+
+let mainWindow;
+
+// ========================================================
+// 🔄 CONFIGURACIÓN DE AUTO-UPDATE
+// ========================================================
+function setupAutoUpdater() {
+  // Configuración de electron-log para debug
+  autoUpdater.logger = log;
+  autoUpdater.logger.transports.file.level = 'info';
+  
+  // Configuración explícita del feed de GitHub (opcional, pero recomendado)
+  // Si el repo es privado, necesitas GITHUB_TOKEN en variables de entorno
+  if (process.env.GITHUB_TOKEN) {
+    autoUpdater.setFeedURL({
+      provider: 'github',
+      owner: 'miguelonjaen',
+      repo: 'Smartship-pro',
+      token: process.env.GITHUB_TOKEN
+    });
+  }
+
+  // Event: Se encontró una actualización disponible
+  autoUpdater.on('update-available', (info) => {
+    log.info('🔄 Actualización disponible:', info.version);
+    if (mainWindow) {
+      mainWindow.webContents.send('update-available', {
+        version: info.version,
+        releaseDate: info.releaseDate,
+        releaseNotes: info.releaseNotes
+      });
+    }
+  });
+
+  // Event: Descargando actualización
+  autoUpdater.on('download-progress', (progressObj) => {
+    log.info(`⬇️ Descargando: ${progressObj.percent.toFixed(2)}%`);
+    if (mainWindow) {
+      mainWindow.webContents.send('download-progress', {
+        percent: progressObj.percent,
+        bytesPerSecond: progressObj.bytesPerSecond,
+        transferred: progressObj.transferred,
+        total: progressObj.total
+      });
+    }
+  });
+
+  // Event: Actualización descargada y lista para instalar
+  autoUpdater.on('update-downloaded', (info) => {
+    log.info('✅ Actualización descargada, lista para instalar:', info.version);
+    if (mainWindow) {
+      mainWindow.webContents.send('update-downloaded', {
+        version: info.version,
+        message: '¡Actualización descargada! Reinicia la app para instalar.'
+      });
+    }
+  });
+
+  // Event: Error en la búsqueda de actualizaciones
+  autoUpdater.on('error', (error) => {
+    log.error('❌ Error de auto-update:', error);
+    if (mainWindow) {
+      mainWindow.webContents.send('update-error', {
+        message: error.message || 'Error desconocido en auto-update'
+      });
+    }
+  });
+
+  // Event: Actualización no disponible
+  autoUpdater.on('update-not-available', (info) => {
+    log.info('✅ La aplicación está actualizada:', info.version);
+    if (mainWindow) {
+      mainWindow.webContents.send('update-not-available', {
+        version: info.version,
+        message: 'Ya tienes la última versión'
+      });
+    }
+  });
+}
+
+// ========================================================
+// 🖥️ IPC HANDLERS PARA AUTO-UPDATE
+// ========================================================
+
+// Buscar actualizaciones manualmente
+ipcMain.handle('check-for-updates', async () => {
+  try {
+    log.info('🔍 Usuario solicitó búsqueda de actualizaciones');
+    const result = await autoUpdater.checkForUpdates();
+    return {
+      success: true,
+      updateAvailable: result.updateInfo !== null,
+      version: result.updateInfo?.version
+    };
+  } catch (error) {
+    log.error('Error al buscar actualizaciones:', error);
+    return {
+      success: false,
+      error: error.message
+    };
+  }
+});
+
+// Instalar actualización (cuando ya está descargada)
+ipcMain.handle('install-update', async () => {
+  log.info('📥 Instalando actualización...');
+  autoUpdater.quitAndInstall();
+});
+
+// Obtener versión actual
+ipcMain.handle('get-app-version', async () => {
+  return app.getVersion();
+});
 
 let mainWindow;
 
@@ -51,8 +165,14 @@ function createWindow() {
     mainWindow.loadFile(path.join(__dirname, 'dist/index.html'));
   }
 
-  // --- BUSCAR ACTUALIZACIONES AL INICIAR ---
-  autoUpdater.checkForUpdatesAndNotify();
+  // --- BUSCAR ACTUALIZACIONES AL INICIAR (SOLO EN PRODUCCIÓN) ---
+  if (!isDev) {
+    // Esperar a que la ventana esté lista antes de buscar actualizaciones
+    mainWindow.webContents.on('did-finish-load', () => {
+      log.info('🖥️ Ventana cargada, buscando actualizaciones...');
+      autoUpdater.checkForUpdates();
+    });
+  }
 }
 
 // --- LÓGICA DE PUERTO SERIE (NMEA) ---
@@ -163,7 +283,10 @@ ipcMain.handle('list-charts-files', async (event, args) => {
 });
 
 // Inicialización de la App
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  setupAutoUpdater();  // 🔄 Configurar auto-update antes de crear ventana
+  createWindow();
+});
 
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();

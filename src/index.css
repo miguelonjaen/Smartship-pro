@@ -7,6 +7,15 @@
   --cyan-accent: #06b6d4;
   --alert-red: #ef4444;
   --alert-yellow: #f59e0b;
+  
+  /* Day Mode (Default) */
+  --bg-primary: #0a0f18;
+  --bg-secondary: #0f172a;
+  --bg-tertiary: #1e293b;
+  --text-primary: #ffffff;
+  --text-secondary: #cbd5e1;
+  --border-color: rgba(255, 255, 255, 0.05);
+  --accent-color: #06b6d4;
 }
 
 body {
@@ -16,10 +25,122 @@ body {
   overflow: hidden;
 }
 
+/* Night Mode - Red Dark Theme for Preserving Night Vision */
+body.night-mode {
+  --bg-primary: #1a0a0a;
+  --bg-secondary: #2d0f0f;
+  --bg-tertiary: #3d1515;
+  --text-primary: #ffcccc;
+  --text-secondary: #ff9999;
+  --border-color: rgba(255, 100, 100, 0.1);
+  --accent-color: #dc2626;
+}
+
+body.night-mode .leaflet-container {
+  background: #0d0606 !important;
+  filter: invert(0.1) hue-rotate(0deg) saturate(1.2);
+}
+
 .leaflet-container {
   width: 100%;
   height: 100%;
   background: #001122;
+  transition: filter 0.3s ease;
+}
+
+body.night-mode .leaflet-container {
+  filter: brightness(0.4) saturate(0.3) hue-rotate(-10deg);
+}
+
+/* Night Mode Styles */
+body.night-mode {
+  background-color: #1a0a0a;
+  color: #ffcccc;
+}
+
+body.night-mode .glass-panel {
+  background: rgba(45, 15, 15, 0.4) !important;
+  border-color: rgba(255, 100, 100, 0.1) !important;
+}
+
+body.night-mode .bg-slate-950 {
+  background-color: #2d0f0f !important;
+}
+
+body.night-mode .bg-slate-900 {
+  background-color: #3d1515 !important;
+}
+
+body.night-mode .bg-slate-800 {
+  background-color: #4d1f1f !important;
+}
+
+body.night-mode .text-slate-500 {
+  color: #ff9999 !important;
+}
+
+body.night-mode .text-white {
+  color: #ffcccc !important;
+}
+
+body.night-mode .text-slate-400 {
+  color: #ffb3b3 !important;
+}
+
+body.night-mode .border-slate-800 {
+  border-color: rgba(255, 100, 100, 0.15) !important;
+}
+
+body.night-mode .border-white {
+  border-color: rgba(255, 100, 100, 0.3) !important;
+}
+
+body.night-mode .bg-cyan-600,
+body.night-mode .bg-cyan-500 {
+  background-color: #991111 !important;
+}
+
+body.night-mode .text-cyan-400,
+body.night-mode .text-cyan-500 {
+  color: #ff6666 !important;
+}
+
+body.night-mode .hover\:text-cyan-400:hover {
+  color: #ff7777 !important;
+}
+
+body.night-mode .bg-emerald-600,
+body.night-mode .bg-emerald-500 {
+  background-color: #7d3c3c !important;
+}
+
+body.night-mode .text-emerald-400 {
+  color: #ff9999 !important;
+}
+
+body.night-mode .shadow-lg,
+body.night-mode .shadow-2xl {
+  box-shadow: 0 0 20px rgba(220, 38, 38, 0.15) !important;
+}
+
+body.night-mode .backdrop-blur-md {
+  backdrop-filter: blur(8px) brightness(0.9) !important;
+}
+
+body.night-mode .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #8b3c3c !important;
+}
+
+body.night-mode .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #a84545 !important;
+}
+
+body.night-mode ::-webkit-scrollbar-thumb {
+  background: #8b3c3c !important;
+}
+
+body.night-mode ::-webkit-scrollbar-thumb:hover {
+  background: #a84545 !important;
 }
 
 /* Radar Pulse Animation */

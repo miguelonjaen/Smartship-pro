@@ -199,7 +199,7 @@ export type AlarmSeverity = 'normal' | 'warning' | 'critical';
 
 export interface SmartshipAlarm {
   id: string;
-  type: 'depth' | 'engine_temp' | 'fuel' | 'ais_collision' | 'internal_temp' | 'humidity';
+  type: 'depth' | 'engine_temp' | 'fuel' | 'ais_collision' | 'internal_temp' | 'humidity' | 'layline_deviation' | 'anchor_drift';
   severity: AlarmSeverity;
   message: string;
   timestamp: number;

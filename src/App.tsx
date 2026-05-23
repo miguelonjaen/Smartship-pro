@@ -79,6 +79,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import Markdown from 'react-markdown';
 import { supabase } from './supabaseClient';
 import { db, auth, onAuthStateChanged, collection, query, orderBy, onSnapshot, addDoc, serverTimestamp } from './firebase';
+import { getTripLogger, TripLogger } from './lib/tripLogger';
+import { calculateLaylineDeviation, calculateAnchorDrift, calculateETA, calculateDistance } from './lib/laylineCalculator';
+import { GPXRoute, GPXWaypoint } from './lib/gpxParser';
 import { UserProfile, ShipData, LogEntry, VesselStatus, WeatherResponse, ProcessedWeather, InventoryItem, SmartshipAlarm, SecurityThresholds, AlarmSeverity } from './types';
 // ... (rest of imports remains same, just fixing firebase ones)
 import AuthScreen from './components/AuthScreen';
@@ -548,11 +551,36 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
     depth: 'simulated'
   });
   const [fleetTab, setFleetTab] = useState<'datos' | 'mantenimiento'>('datos');
-  const [isNightMode, setIsNightMode] = useState(false);
+  const [isNightMode, setIsNightMode] = useState(() => {
+    // Load night mode preference from localStorage on mount
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('smartship_night_mode');
+      return saved ? JSON.parse(saved) : false;
+    }
+    return false;
+  });
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const [fleet, setFleet] = useState<ShipData[]>([]);
   const [allShips, setAllShips] = useState<(ShipData & { capitan_email?: string })[]>([]);
   const [selectedShipId, setSelectedShipId] = useState<string | null>(null);
+
+  // --- Pro Navigation Features ---
+  const [currentRoute, setCurrentRoute] = useState<GPXRoute | null>(null);
+  const [currentWaypoint, setCurrentWaypoint] = useState<GPXWaypoint | null>(null);
+  const [waypointIndex, setWaypointIndex] = useState(0);
+  const [isAnchorWatchActive, setIsAnchorWatchActive] = useState(false);
+  const [anchorPosition, setAnchorPosition] = useState<{ lat: number; lng: number } | null>(null);
+  const tripLoggerRef = useRef<TripLogger | null>(null);
+
+  // Night Mode effect: Apply/remove night-mode class and persist preference
+  useEffect(() => {
+    if (isNightMode) {
+      document.body.classList.add('night-mode');
+    } else {
+      document.body.classList.remove('night-mode');
+    }
+    localStorage.setItem('smartship_night_mode', JSON.stringify(isNightMode));
+  }, [isNightMode]);
 
   const handleShipSelection = async (shipId: string | null) => {
     if (!userProfile || !shipId) {
@@ -700,6 +728,9 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
   const [aisRetryCount, setAisRetryCount] = useState(0);
   const [isAisCooldown, setIsAisCooldown] = useState(false);
   const [depth, setDepth] = useState(10.5);
+  const [depthHistory, setDepthHistory] = useState(() => 
+    Array.from({ length: 20 }, (_, i) => ({ time: i, depth: 10 + Math.random() }))
+  );
   const [aisTargets, setAisTargets] = useState<any[]>([]);
   const [batteryLevel, setBatteryLevel] = useState(95);
   const [batteryVoltage, setBatteryVoltage] = useState(12.8);
@@ -985,7 +1016,54 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
     processQueue();
   }, [adviceQueue, isAdvisorProcessing]);
 
-  const [depthHistory, setDepthHistory] = useState(() => Array.from({ length: 20 }, (_, i) => ({ time: i, depth: 10 + Math.random() })));
+  // --- PRO NAVIGATION: Trip Logger (Blackbox) ---
+  useEffect(() => {
+    const initTripLogger = async () => {
+      if (!tripLoggerRef.current) {
+        tripLoggerRef.current = getTripLogger();
+      }
+
+      if (isTravesiaActive && selectedShipId) {
+        // Start new session
+        await tripLoggerRef.current.startSession(
+          selectedShipId,
+          currentRoute?.name || navigationDestination || 'Navegación Libre'
+        );
+
+        // Setup automatic logging every 5 minutes
+        tripLoggerRef.current.setupAutoLogging(() => ({
+          lat: shipPosition?.lat || 36.7215,
+          lng: shipPosition?.lng || -3.5235,
+          cog: fleet.find(s => s.id === selectedShipId)?.cog || 0,
+          sog: simulatedSog,
+          windDir: weather?.windDir || 0,
+          windSpeed: weather?.wind || 0,
+          depth: depth,
+          heading: fleet.find(s => s.id === selectedShipId)?.cog || 0,
+          fuelLevel: engineData.fuel,
+          waterLevel: engineData.water
+        }));
+
+        notifyAdmiral('📊 Logger de Travesía: Grabación iniciada. Historial guardado cada 5 minutos.', 'info');
+      } else if (tripLoggerRef.current.getCurrentSession()) {
+        // End current session
+        const endedSession = await tripLoggerRef.current.endSession();
+        tripLoggerRef.current.stopAutoLogging();
+
+        if (endedSession) {
+          const metrics = TripLogger.calculateMetrics(endedSession);
+          if (metrics) {
+            notifyAdmiral(
+              `📊 Travesía completada.\nDistancia: ${metrics.totalDistance.toFixed(1)} NM\nVelocidad promedio: ${metrics.avgSOG.toFixed(1)} kts\nDuración: ${metrics.durationHours.toFixed(1)}h`,
+              'info'
+            );
+          }
+        }
+      }
+    };
+
+    initTripLogger();
+  }, [isTravesiaActive, selectedShipId]);
 
   // Monitor depth for critical warning
   useEffect(() => {
@@ -1102,6 +1180,62 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
       setRutaActiva([]);
     }
   }, [navigationDestination, shipPosition?.lat, shipPosition?.lng, isNavigationAuto ? weather?.windDir : null, isNavigationAuto ? weather?.wind : null]);
+
+  // --- PRO NAVIGATION: Layline Deviation Monitoring ---
+  useEffect(() => {
+    if (!isTravesiaActive || !targetDestination || !shipPosition) return;
+
+    const laylineData = calculateLaylineDeviation(
+      shipPosition.lat,
+      shipPosition.lng,
+      targetDestination.lat,
+      targetDestination.lng,
+      fleet.find(s => s.id === selectedShipId)?.cog || 0,
+      weather?.windDir || 0,
+      simulatedSog
+    );
+
+    // Alert if significantly off layline
+    if (laylineData.isOffLayline) {
+      if (!alarms.find(a => a.type === 'layline_deviation')) {
+        addAlarm(
+          'layline_deviation',
+          'warning',
+          `Fuera de layline: Desviación ${Math.abs(laylineData.deviation).toFixed(0)}°. Rumbo óptimo: ${Math.round(laylineData.optimalBearing)}°`,
+          Math.abs(laylineData.deviation)
+        );
+      }
+    } else {
+      removeAlarmByType('layline_deviation');
+    }
+  }, [isTravesiaActive, targetDestination, shipPosition, simulatedSog, weather?.windDir, fleet, selectedShipId, alarms]);
+
+  // --- PRO NAVIGATION: Anchor Watch Monitoring ---
+  useEffect(() => {
+    if (!isAnchorWatchActive || !anchorPosition || !shipPosition) return;
+
+    const anchorWatchData = calculateAnchorDrift(
+      anchorPosition.lat,
+      anchorPosition.lng,
+      shipPosition.lat,
+      shipPosition.lng,
+      200 // 200 meter threshold
+    );
+
+    // Alert if drifting
+    if (anchorWatchData.isDrifting) {
+      if (!alarms.find(a => a.type === 'anchor_drift')) {
+        addAlarm(
+          'anchor_drift',
+          'critical',
+          `⚓ ALERTA DE DERIVA: Barco desplazado ${anchorWatchData.driftDistance.toFixed(0)}m del punto de fondeo (${Math.round(anchorWatchData.driftBearing)}°)`,
+          anchorWatchData.driftDistance
+        );
+      }
+    } else {
+      removeAlarmByType('anchor_drift');
+    }
+  }, [isAnchorWatchActive, anchorPosition, shipPosition, alarms]);
 
   const cycleChart = () => {
     if (chartMode === 'standard') {
@@ -2235,6 +2369,88 @@ const shipName = activeShip?.nombre || 'Nucleus Zero';
       console.error('Error planning route:', error);
       setAdvisorMessage('Error en el cálculo de ruta táctica.');
     }
+  };
+
+  // --- PRO NAVIGATION: Route & Waypoint Management ---
+  const handleRouteLoaded = async (route: GPXRoute) => {
+    setCurrentRoute(route);
+    setWaypointIndex(0);
+    
+    if (route.waypoints.length > 0) {
+      setCurrentWaypoint(route.waypoints[0]);
+      
+      // Auto-navigate to first waypoint
+      const firstWp = route.waypoints[0];
+      updateNavigationPlan(
+        { lat: firstWp.lat, lng: firstWp.lng },
+        firstWp.name
+      );
+
+      notifyAdmiral(
+        `📍 Ruta Importada: "${route.name}"\n` +
+        `${route.waypoints.length} waypoints | ${route.distance?.toFixed(1) || '?'} NM\n` +
+        `Navegando a: ${firstWp.name}`,
+        'info'
+      );
+    }
+  };
+
+  const handleNextWaypoint = async () => {
+    if (!currentRoute || waypointIndex >= currentRoute.waypoints.length - 1) {
+      notifyAdmiral('✓ Ruta completada', 'info');
+      setCurrentRoute(null);
+      return;
+    }
+
+    const nextIdx = waypointIndex + 1;
+    const nextWp = currentRoute.waypoints[nextIdx];
+    
+    setWaypointIndex(nextIdx);
+    setCurrentWaypoint(nextWp);
+
+    // Calculate distance and ETA
+    const distance = calculateDistance(
+      shipPosition?.lat || 36.7215,
+      shipPosition?.lng || -3.5235,
+      nextWp.lat,
+      nextWp.lng
+    );
+
+    const eta = calculateETA(distance, simulatedSog);
+
+    updateNavigationPlan(
+      { lat: nextWp.lat, lng: nextWp.lng },
+      nextWp.name
+    );
+
+    notifyAdmiral(
+      `➤ Siguiente waypoint: ${nextWp.name}\n` +
+      `Distancia: ${distance.toFixed(1)} NM | ETA: ${eta ? new Date(eta).toLocaleTimeString() : '--:--'}`,
+      'info'
+    );
+  };
+
+  const handleActivateAnchorWatch = () => {
+    if (!shipPosition) {
+      notifyAdmiral('⚓ Error: Posición no disponible', 'warning');
+      return;
+    }
+
+    setAnchorPosition(shipPosition);
+    setIsAnchorWatchActive(true);
+    notifyAdmiral(
+      `⚓ Anchor Watch ACTIVO\n` +
+      `Posición de fondeo: ${shipPosition.lat.toFixed(4)}°, ${shipPosition.lng.toFixed(4)}°\n` +
+      `Umbral: 200m`,
+      'info'
+    );
+  };
+
+  const handleDeactivateAnchorWatch = () => {
+    setIsAnchorWatchActive(false);
+    setAnchorPosition(null);
+    removeAlarmByType('anchor_drift');
+    notifyAdmiral('⚓ Anchor Watch DESACTIVADO', 'info');
   };
 
   const handleNavigateToDestination = async (coords: { lat: number; lng: number }) => {

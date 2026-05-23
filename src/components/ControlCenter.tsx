@@ -862,6 +862,32 @@ export const ControlCenter: React.FC<ControlCenterProps> = ({
                     {activeTab === 'shield' ? 'Activo' : 'Activar'}
                   </button>
                 </div>
+
+                <div className="h-px bg-white/5" />
+
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className={cn(
+                      "p-3 rounded-2xl border transition-all",
+                      isNightMode ? "bg-red-500/20 border-red-500/40 text-red-400" : "bg-slate-500/10 border-slate-500/20 text-slate-500"
+                    )}>
+                      <Moon size={20} />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-black text-white uppercase tracking-tight italic">Modo Nocturno</h4>
+                      <p className="text-[9px] font-mono text-slate-500">Preservar Visión Nocturna</p>
+                    </div>
+                  </div>
+                  <button 
+                    onClick={toggleNightMode}
+                    className={cn(
+                      "px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
+                      isNightMode ? "bg-red-600 text-white shadow-lg shadow-red-900/40" : "bg-slate-800 text-slate-400 hover:text-white"
+                    )}
+                  >
+                    {isNightMode ? 'Activo' : 'Desactivado'}
+                  </button>
+                </div>
               </div>
 
               <div className="p-4 bg-amber-500/5 border border-amber-500/10 rounded-2xl">

@@ -1,7 +1,7 @@
 {
   "name": "smartship-pro",
   "private": true,
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Aplicación de escritorio para gestión náutica y NMEA",
   "main": "electron-main.js",
   "author": "MiguelonJaen",
@@ -29,6 +29,7 @@
     "clsx": "^2.1.1",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
+    "electron-log": "^5.4.4",
     "electron-updater": "^6.8.3",
     "express": "^4.22.2",
     "firebase": "^12.10.0",
