@@ -130,7 +130,7 @@ ipcMain.handle('get-app-version', async () => {
   return app.getVersion();
 });
 
-let mainWindow;
+// let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
