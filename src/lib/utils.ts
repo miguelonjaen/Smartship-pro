@@ -11,3 +11,19 @@ export const calculateDistanceNM = (lat1: number, lon1: number, lat2: number, lo
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c;
 };
+
+export const calculateBearing = (lat1: number, lon1: number, lat2: number, lon2: number) => {
+  const toRad = (value: number) => value * (Math.PI / 180);
+  const toDeg = (value: number) => value * (180 / Math.PI);
+
+  const startLat = toRad(lat1);
+  const endLat = toRad(lat2);
+  const dLon = toRad(lon2 - lon1);
+
+  const y = Math.sin(dLon) * Math.cos(endLat);
+  const x =
+    Math.cos(startLat) * Math.sin(endLat) -
+    Math.sin(startLat) * Math.cos(endLat) * Math.cos(dLon);
+
+  return (toDeg(Math.atan2(y, x)) + 360) % 360;
+};

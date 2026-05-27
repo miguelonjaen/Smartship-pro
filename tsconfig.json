@@ -1,26 +1,32 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "experimentalDecorators": true,
-    "useDefineForClassFields": false,
     "module": "ESNext",
-    "lib": [
-      "ES2022",
-      "DOM",
-      "DOM.Iterable"
-    ],
-    "skipLibCheck": true,
+    "lib": ["ES2022", "DOM", "DOM.Iterable"],
+    
+    
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./src/*"],
+      "@lib/*": ["./src/lib/*"],
+      "@types/*": ["./src/types/*"]
+    },
+
     "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "moduleDetection": "force",
-    "allowJs": true,
     "jsx": "react-jsx",
-    "paths": {
-      "@/*": [
-        "./*"
-      ]
-    },
-    "allowImportingTsExtensions": true,
-    "noEmit": true
-  }
+    "experimentalDecorators": true,
+    "useDefineForClassFields": false,
+    
+    "skipLibCheck": true,
+    "allowJs": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "forceConsistentCasingInFileNames": true
+  },
+  "include": ["src", "electron", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "dist-electron", "src/**/*.test.ts", "src/**/*.test.tsx"]
 }

@@ -255,6 +255,32 @@ export class TripLogger {
   }
 
   /**
+   * Save session to IndexedDB
+   */
+  private async saveSessionToDB(session: TripSession): Promise<void> {
+    return new Promise((resolve) => {
+      if (!this.db) {
+        console.warn('IndexedDB not available, session not persisted');
+        resolve();
+        return;
+      }
+
+      const tx = this.db.transaction([this.storeName], 'readwrite');
+      const store = tx.objectStore(this.storeName);
+      const request = store.put(session);
+
+      request.onsuccess = () => {
+        resolve();
+      };
+
+      request.onerror = () => {
+        console.error('Failed to save session:', request.error);
+        resolve();
+      };
+    });
+  }
+
+  /**
    * Delete a session
    */
   async deleteSession(sessionId: string): Promise<void> {

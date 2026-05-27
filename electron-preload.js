@@ -12,6 +12,22 @@ contextBridge.exposeInMainWorld('smartshipAPI', {
   
   // Tus otros canales (como el del puerto serie) que ya tuvieras abajo...
   connectNMEA: (portPath) => ipcRenderer.send('connect-nmea', portPath),
-  onNMEAData: (callback) => ipcRenderer.on('nmea-data', (event, data) => callback(data)),
-  onNMEAError: (callback) => ipcRenderer.on('nmea-error', (event, error) => callback(error))
+  onNMEAData: (callback) => {
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on('vessel-telemetry', listener);
+    return () => ipcRenderer.removeListener('vessel-telemetry', listener);
+  },
+  onNMEAError: (callback) => {
+    const listener = (event, error) => callback(error);
+    ipcRenderer.on('nmea-error', listener);
+    return () => ipcRenderer.removeListener('nmea-error', listener);
+  },
+  on: (channel, callback) => {
+    const allowedChannels = ['vessel-telemetry', 'nmea-error', 'nmea-raw'];
+    if (!allowedChannels.includes(channel)) return () => {};
+
+    const listener = (event, data) => callback(data);
+    ipcRenderer.on(channel, listener);
+    return () => ipcRenderer.removeListener(channel, listener);
+  }
 });

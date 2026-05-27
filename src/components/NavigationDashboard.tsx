@@ -3,6 +3,7 @@ import { Compass, Navigation, Gauge, Waves, MapPin, Activity } from 'lucide-reac
 import { motion } from 'motion/react';
 import { cn } from '../lib/utils';
 import { Language, translations } from '../i18n';
+import { SensorQualityMap } from '../lib/sensorQuality';
 
 interface NavData {
   lat: number;
@@ -16,9 +17,10 @@ interface Props {
   lang: Language;
   dataSource: Record<string, 'real' | 'simulated'>;
   setDataSource: (val: any) => void;
+  sensorQuality?: SensorQualityMap;
 }
 
-export const NavigationDashboard: React.FC<Props> = ({ lang, dataSource, setDataSource }) => {
+export const NavigationDashboard: React.FC<Props> = ({ lang, dataSource, setDataSource, sensorQuality }) => {
   const t = translations[lang];
   const [navData, setNavData] = useState<NavData>({
     lat: 36.7215,
@@ -65,7 +67,16 @@ export const NavigationDashboard: React.FC<Props> = ({ lang, dataSource, setData
     }));
   };
 
-  const NavCard = ({ icon: Icon, title, value, unit, sensor }: any) => (
+  const NavCard = ({ icon: Icon, title, value, unit, sensor }: any) => {
+    const quality = sensorQuality?.[sensor as keyof SensorQualityMap];
+    const statusClass =
+      quality?.status === 'excellent' || quality?.status === 'good'
+        ? 'text-emerald-400'
+        : quality?.status === 'stale'
+          ? 'text-amber-400'
+          : 'text-slate-500';
+
+    return (
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
@@ -111,8 +122,17 @@ export const NavigationDashboard: React.FC<Props> = ({ lang, dataSource, setData
           className="h-full bg-cyan-500 shadow-[0_0_8px_rgba(6,182,212,0.5)]"
         />
       </div>
+      {quality && (
+        <div className="mt-3 flex items-center justify-between text-[8px] font-black uppercase tracking-widest">
+          <span className={statusClass}>{quality.status}</span>
+          <span className="text-slate-600">
+            {quality.ageSeconds === null ? 'SIN DATO' : `${quality.ageSeconds.toFixed(0)}S`}
+          </span>
+        </div>
+      )}
     </motion.div>
-  );
+    );
+  };
 
   return (
     <div className="p-10 space-y-10 w-full max-w-7xl mx-auto">

@@ -27,8 +27,46 @@ export interface AnchorWatchData {
 }
 
 /**
+ * Calculate dynamic deviation threshold based on point of sail (TWA)
+ * 
+ * Precision requirements vary by sailing configuration:
+ * - Close-hauled (ceñida): Requires tight precision (8°)
+ * - Close reach: Moderate precision (10°)
+ * - Beam reach & broad reach (través): Standard precision (15°)
+ * - Running (empopada): Relaxed precision (18°)
+ * 
+ * @param twa - True Wind Angle (0-359°)
+ * @returns Dynamic deviation threshold in degrees
+ */
+export function calculateDynamicDeviationThreshold(twa: number): number {
+  // Normalize TWA to 0-360 range
+  const normalizedTWA = ((twa % 360) + 360) % 360;
+
+  // Close-hauled (ceñida): 0-30° or 330-360° — máxima precisión
+  if (normalizedTWA < 30 || normalizedTWA >= 330) {
+    return 8;
+  }
+  
+  // Close reach: 30-60° or 300-330° — precisión moderada
+  if ((normalizedTWA >= 30 && normalizedTWA < 60) || 
+      (normalizedTWA >= 300 && normalizedTWA < 330)) {
+    return 10;
+  }
+  
+  // Beam reach & broad reach (través): 60-120° or 240-300° — precisión estándar
+  if ((normalizedTWA >= 60 && normalizedTWA < 120) || 
+      (normalizedTWA >= 240 && normalizedTWA < 300)) {
+    return 15;
+  }
+  
+  // Running (empopada): 120-240° — precisión relajada
+  return 18;
+}
+
+/**
  * Calculate layline deviation
  * Optimal angle to waypoint vs current course
+ * Uses dynamic deviation threshold based on current point of sail (TWA)
  * 
  * @param currentLat - Current latitude
  * @param currentLng - Current longitude
@@ -37,8 +75,8 @@ export interface AnchorWatchData {
  * @param currentCOG - Current course over ground (0-359°)
  * @param windDir - Wind direction (0-359°)
  * @param sog - Speed over ground in knots
- * @param deviationThreshold - Alarm threshold in degrees (default 15°)
- * @returns LaylineData object
+ * @param deviationThreshold - Alarm threshold in degrees (deprecated: now calculated dynamically)
+ * @returns LaylineData object with dynamic precision requirements
  */
 export function calculateLaylineDeviation(
   currentLat: number,
@@ -48,7 +86,7 @@ export function calculateLaylineDeviation(
   currentCOG: number,
   windDir: number,
   sog: number,
-  deviationThreshold: number = 15
+  deviationThreshold: number = 15  // Fallback for backwards compatibility
 ): LaylineData {
   // Calculate true bearing to waypoint
   const optimalBearing = calculateBearing(
@@ -68,17 +106,25 @@ export function calculateLaylineDeviation(
     deviation += 360;
   }
 
-  // Calculate deviation as percentage of acceptable range
-  const deviationPercentage = Math.abs(deviation) / deviationThreshold;
-  const isDeviated = Math.abs(deviation) > deviationThreshold;
-
   // Calculate optimal sailing angle relative to wind (for sailboats)
   // Optimal is typically 22-35° from apparent wind
   const apparentWind = (windDir - currentCOG + 360) % 360;
   const windOptimalAngle = apparentWind > 180 ? apparentWind - 360 : apparentWind;
 
-  // Check if significantly off layline (more than 2x threshold)
-  const isOffLayline = Math.abs(deviation) > deviationThreshold * 2;
+  // Calculate True Wind Angle (TWA) for dynamic threshold
+  // TWA = absolute difference between wind direction and COG
+  const twa = Math.abs(windDir - currentCOG);
+  const normalizedTWA = twa > 180 ? 360 - twa : twa;
+  
+  // Use dynamic threshold based on point of sail
+  const dynamicThreshold = calculateDynamicDeviationThreshold(normalizedTWA);
+
+  // Calculate deviation as percentage of acceptable range
+  const deviationPercentage = Math.abs(deviation) / dynamicThreshold;
+  const isDeviated = Math.abs(deviation) > dynamicThreshold;
+
+  // Check if significantly off layline (more than 2x dynamic threshold)
+  const isOffLayline = Math.abs(deviation) > dynamicThreshold * 2;
 
   return {
     optimalBearing,

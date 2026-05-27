@@ -130,13 +130,13 @@ ipcMain.handle('get-app-version', async () => {
   return app.getVersion();
 });
 
-// let mainWindow;
+let mainWindow;
 
 function createWindow() {
   mainWindow = new BrowserWindow({
     width: 1280,
     height: 800,
-    title: "SmartShip Pro",
+    title: `SmartShip Pro ${packageJson.version}`,
     backgroundColor: '#020617',
     webPreferences: {
       // Usamos path.resolve para asegurar que la ruta sea correcta
@@ -175,28 +175,177 @@ function createWindow() {
   }
 }
 
+// ========================================================
+// 🛰️ NMEA PARSER CORE (GPRMC, IIMWV, SDDPT)
+// ========================================================
+function validateNMEAChecksum(line) {
+  const sentence = String(line || '').trim();
+  if (!sentence.startsWith('$') && !sentence.startsWith('!')) return { valid: false, reason: 'missing-start' };
+
+  const starIndex = sentence.indexOf('*');
+  if (starIndex === -1) return { valid: false, reason: 'missing-checksum' };
+
+  const payload = sentence.slice(1, starIndex);
+  const expected = sentence.slice(starIndex + 1, starIndex + 3).toUpperCase();
+  if (!/^[0-9A-F]{2}$/.test(expected)) return { valid: false, reason: 'invalid-checksum-format' };
+
+  let checksum = 0;
+  for (let i = 0; i < payload.length; i += 1) checksum ^= payload.charCodeAt(i);
+
+  const actual = checksum.toString(16).toUpperCase().padStart(2, '0');
+  return { valid: actual === expected, reason: actual === expected ? 'ok' : 'checksum-mismatch:' + actual };
+}
+
+function numberOrZero(value) {
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseNMEASentence(line) {
+  const sentence = String(line || '').trim();
+  if (!sentence.startsWith('$') && !sentence.startsWith('!')) return null;
+
+  const checksum = validateNMEAChecksum(sentence);
+  if (!checksum.valid) {
+    return { type: 'NMEA_INVALID', raw: sentence, reason: checksum.reason, timestamp: Date.now() };
+  }
+
+  const body = sentence.slice(0, sentence.indexOf('*'));
+  const parts = body.split(',');
+  const type = parts[0].substring(3); // RMC, GGA, VTG, MWV, DPT, DBT
+
+  try {
+    switch (type) {
+      case 'RMC':
+        if (parts[2] !== 'A') return null;
+        return {
+          type: 'GPS',
+          lat: convertToDecimal(parts[3], parts[4]),
+          lng: convertToDecimal(parts[5], parts[6]),
+          sog: numberOrZero(parts[7]),
+          cog: numberOrZero(parts[8]),
+          quality: 'valid',
+          sentence: 'RMC',
+          timestamp: Date.now()
+        };
+
+      case 'GGA':
+        if (numberOrZero(parts[6]) <= 0) return null;
+        return {
+          type: 'GPS',
+          lat: convertToDecimal(parts[2], parts[3]),
+          lng: convertToDecimal(parts[4], parts[5]),
+          fixQuality: numberOrZero(parts[6]),
+          satellites: numberOrZero(parts[7]),
+          hdop: numberOrZero(parts[8]),
+          quality: 'valid',
+          sentence: 'GGA',
+          timestamp: Date.now()
+        };
+
+      case 'VTG':
+        return {
+          type: 'GPS',
+          cog: numberOrZero(parts[1]),
+          sog: numberOrZero(parts[5]),
+          quality: 'valid',
+          sentence: 'VTG',
+          timestamp: Date.now()
+        };
+
+      case 'MWV':
+        return {
+          type: 'WIND',
+          angle: numberOrZero(parts[1]),
+          reference: parts[2],
+          speed: parts[4] === 'M' ? numberOrZero(parts[3]) * 1.94384 : numberOrZero(parts[3]),
+          unit: 'N',
+          quality: parts[5] === 'V' ? 'invalid' : 'valid',
+          sentence: 'MWV',
+          timestamp: Date.now()
+        };
+
+      case 'DPT':
+        return {
+          type: 'DEPTH',
+          depth: numberOrZero(parts[1]) + numberOrZero(parts[2]),
+          quality: 'valid',
+          sentence: 'DPT',
+          timestamp: Date.now()
+        };
+
+      case 'DBT':
+        return {
+          type: 'DEPTH',
+          depth: numberOrZero(parts[3]),
+          quality: 'valid',
+          sentence: 'DBT',
+          timestamp: Date.now()
+        };
+
+      default:
+        return null;
+    }
+  } catch (e) {
+    return { type: 'NMEA_INVALID', raw: sentence, reason: e.message || 'parse-error', timestamp: Date.now() };
+  }
+}
+
+function convertToDecimal(coord, direction) {
+  if (!coord || !direction || coord.indexOf('.') === -1) return 0;
+  try {
+    const dotPos = coord.indexOf('.');
+    const degrees = parseFloat(coord.substring(0, dotPos - 2)) || 0;
+    const minutes = parseFloat(coord.substring(dotPos - 2)) || 0;
+    let decimal = degrees + (minutes / 60);
+    if (direction === 'S' || direction === 'W') decimal *= -1;
+    return isNaN(decimal) ? 0 : decimal;
+  } catch (e) {
+    return 0;
+  }
+}
+
 // --- LÓGICA DE PUERTO SERIE (NMEA) ---
+let activePort = null;
 ipcMain.on('connect-nmea', (event, portPath) => {
   if (!SerialPort) {
     event.reply('nmea-error', "Librería serialport no cargada");
     return;
   }
 
+  if (activePort && activePort.isOpen) {
+    activePort.close();
+  }
+
+  log.info(`⚓ Intentando atraque en puerto serie: ${portPath}`);
+
   try {
-    const port = new SerialPort({
+    activePort = new SerialPort({
       path: portPath,
       baudRate: 4800,
       autoOpen: true
     });
 
-    const parser = port.pipe(new ReadlineParser({ delimiter: '\r\n' }));
+    const parser = activePort.pipe(new ReadlineParser({ delimiter: '\r\n' }));
 
     parser.on('data', (line) => {
-      if (mainWindow) mainWindow.webContents.send('nmea-data', line);
+      const parsedData = parseNMEASentence(line);
+      if (mainWindow) {
+        // Enviamos la línea bruta para debug y el objeto parseado para navegación
+        mainWindow.webContents.send('nmea-raw', line);
+        if (parsedData) {
+          mainWindow.webContents.send('vessel-telemetry', parsedData);
+        }
+      }
     });
 
-    port.on('error', (err) => {
+    activePort.on('error', (err) => {
       if (mainWindow) mainWindow.webContents.send('nmea-error', `Error de puerto: ${err.message}`);
+    });
+
+    activePort.on('close', () => {
+      log.warn("🔌 Puerto serie cerrado");
+      if (mainWindow) mainWindow.webContents.send('nmea-error', "Puerto desconectado");
     });
 
     console.log(`Conectado a puerto NMEA: ${portPath}`);

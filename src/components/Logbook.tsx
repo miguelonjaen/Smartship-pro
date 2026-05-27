@@ -187,6 +187,7 @@ const Logbook: React.FC<LogbookProps> = ({
     // OPTIMISMO: Borrado instantáneo local por fecha
     const originalLogs = [...logEntries];
     setLogEntries(prev => prev.filter(entry => {
+      if (!entry.created_at) return true;
       const entryDate = new Date(entry.created_at).toLocaleDateString('en-CA');
       return entryDate !== dateStr;
     }));
@@ -271,6 +272,7 @@ const Logbook: React.FC<LogbookProps> = ({
     // OPTIMISMO: Borrado instantáneo local total por fecha
     const originalLogs = [...logEntries];
     setLogEntries(prev => prev.filter(entry => {
+      if (!entry.created_at) return true;
       const entryDate = new Date(entry.created_at).toLocaleDateString('en-CA');
       return entryDate !== selectedDate;
     }));

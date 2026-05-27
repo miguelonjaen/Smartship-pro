@@ -1,7 +1,7 @@
 {
   "name": "smartship-pro",
   "private": true,
-  "version": "1.0.8",
+  "version": "1.0.9",
   "description": "Aplicación de escritorio para gestión náutica y NMEA",
   "main": "electron-main.js",
   "author": "MiguelonJaen",
@@ -12,7 +12,8 @@
     "preview": "vite preview",
     "clean": "rm -rf dist dist_electron",
     "lint": "tsc --noEmit",
-    "electron:start": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
+    "server": "node map-server.js",
+    "electron:start": "concurrently \"npm run server\" \"npm run dev\" \"wait-on http://localhost:3000 && electron .\"",
     "electron:build": "npm run build && electron-builder",
     "electron-dev": "electron .",
     "build-win": "electron-builder --win"

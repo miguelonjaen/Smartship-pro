@@ -65,6 +65,7 @@ interface TacticalHUDProps {
     dtw: number;
     xte: number;
     waypointName: string;
+    isAnchorActive?: boolean;
   };
   weather?: any;
   onTabChange: (tab: any) => void;
